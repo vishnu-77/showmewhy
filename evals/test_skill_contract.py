@@ -33,8 +33,8 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("1,200–2,000 tokens", self.skill)
         self.assertIn("800–1,800 tokens", self.skill)
 
-    def test_v0_version_file(self):
-        self.assertEqual(VERSION.read_text(encoding="utf-8").strip(), "0.1.1")
+    def test_version_file(self):
+        self.assertEqual(VERSION.read_text(encoding="utf-8").strip(), "1.0.0")
 
 
 if __name__ == "__main__":
