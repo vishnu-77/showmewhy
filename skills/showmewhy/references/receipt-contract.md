@@ -46,4 +46,4 @@ ShowMeWhy · <used> / <budget> tokens · <reduction>
 
 ## Machine-readable contract
 
-The canonical schema is `skills/showmewhy/references/showmewhy-receipt.schema.json`. Future runtimes may emit or consume that representation, but V1 remains human-first.
+The canonical schema is `references/showmewhy-receipt.schema.json`. Future runtimes may emit or consume that representation, but V1 remains human-first.
