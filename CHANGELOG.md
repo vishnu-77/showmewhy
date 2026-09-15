@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.0 - 2026-09-15
+
+### Added
+
+- Formal ShowMeWhy Receipt V1 contract and JSON Schema.
+- `/showmewhy json` machine-readable receipt mode.
+- Zero-dependency receipt validator.
+- Explicit representation-routing grammar.
+- 108-case behavioural benchmark matrix across nine task categories.
+- Deterministic V1 schema and benchmark integrity tests.
+- Platform notes for Claude Code, Codex, and Cowork/knowledge-work usage.
+
+### Changed
+
+- Standardised conclusion, signal, WHY, caveat/confidence, monitor, and impact semantics.
+- Clarified that V1 remains a user-invoked skill; runtime context interception is not part of this release.
+
 ## 0.1.1 — Repository hygiene
 
 - Added MIT licence.
