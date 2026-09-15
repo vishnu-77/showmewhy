@@ -22,3 +22,73 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Run eval and contract tests
         run: python -m unittest discover -s evals -p 'test_*.py'
+
+  plugin-acceptance:
+    name: Claude plugin acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLAUDE_CODE_PLUGIN_PREFER_HTTPS: '1'
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Claude Code
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://claude.ai/install.sh | bash -s stable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          claude --version
+
+      - name: Configure authenticated GitHub cloning
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH_BASE="https://x-access-token:${GITHUB_TOKEN}@github.com/"
+          git config --global --add url."${AUTH_BASE}".insteadOf "https://github.com/"
+          git config --global --add url."${AUTH_BASE}".insteadOf "git@github.com:"
+          git config --global --add url."${AUTH_BASE}".insteadOf "ssh://git@github.com/"
+
+      - name: Validate ShowMeWhy plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          claude plugin validate "$GITHUB_WORKSPACE"
+
+      - name: Add marketplace and install plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          claude plugin marketplace add "$GITHUB_REPOSITORY"
+          claude plugin install showmewhy@showmewhy
+
+      - name: Verify plugin survives a fresh CLI process
+        shell: bash
+        run: |
+          set -euo pipefail
+          claude plugin list | tee /tmp/showmewhy-plugins.txt
+          grep -qi 'showmewhy' /tmp/showmewhy-plugins.txt
+
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path.home() / '.claude' / 'plugins'
+          registry = root / 'installed_plugins.json'
+          if not registry.exists():
+              raise SystemExit('installed_plugins.json was not created')
+
+          text = registry.read_text(encoding='utf-8')
+          if 'showmewhy@showmewhy' not in text:
+              raise SystemExit('ShowMeWhy was not persisted in the installed plugin registry')
+
+          skills = [
+              path for path in root.rglob('SKILL.md')
+              if 'showmewhy' in path.parts
+          ]
+          if not skills:
+              raise SystemExit('Installed ShowMeWhy SKILL.md was not found in the Claude plugin cache')
+
+          print(f'accepted: {skills[0]}')
+          PY
