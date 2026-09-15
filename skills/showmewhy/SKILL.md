@@ -23,7 +23,7 @@ Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 - `compare`: prioritise a compact comparison, normally a Markdown table, 350-token soft budget
 - `monitor`: show the one-line evidence, recurrence guard, risk, and deterministic next-task budget
 - `impact`: explain the token/CO₂e receipt or calculate it from available counts; do not re-answer the whole topic unless needed
-- `json`: emit a machine-readable ShowMeWhy Receipt V1 object conforming to `skills/showmewhy/references/showmewhy-receipt.schema.json`
+- `json`: emit a machine-readable ShowMeWhy Receipt V1 object conforming to `references/showmewhy-receipt.schema.json`
 - `deep`: preserve more detail for complex or high-consequence analysis, 700-token soft budget
 
 If the remaining arguments contain a question or scope, apply ShowMeWhy to that target. Otherwise apply it to the most recent substantive answer, investigation, task result, or current topic.
@@ -36,7 +36,7 @@ For representation choice, read `references/representation-routing.md`. Use the 
 
 ### `json` mode
 
-When invoked as `/showmewhy json`, emit only a JSON object matching `skills/showmewhy/references/showmewhy-receipt.schema.json`. Use `UNVERIFIED`/`MISSING` strings and `constrained` state when evidence or guard cannot be established. Do not fabricate source references, token counts, carbon estimates, confidence, or causality just to populate the schema.
+When invoked as `/showmewhy json`, emit only a JSON object matching `references/showmewhy-receipt.schema.json`. Use `UNVERIFIED`/`MISSING` strings and `constrained` state when evidence or guard cannot be established. Do not fabricate source references, token counts, carbon estimates, confidence, or causality just to populate the schema.
 
 ## Response priority
 
