@@ -1,0 +1,40 @@
+[
+  {
+    "id": "simple-answer-no-visual",
+    "category": "simple",
+    "expect": {
+      "visual_required": false,
+      "max_tokens": 150,
+      "must_preserve_caveats": true
+    }
+  },
+  {
+    "id": "debug-auth-regression",
+    "category": "debugging",
+    "expect": {
+      "visual_type": "why_graph",
+      "max_tokens": 300,
+      "must_distinguish_inference": true,
+      "unsupported_causality": false
+    }
+  },
+  {
+    "id": "architecture-comparison",
+    "category": "architecture",
+    "expect": {
+      "visual_type": "table",
+      "max_tokens": 350,
+      "must_preserve_caveats": true
+    }
+  },
+  {
+    "id": "security-high-consequence",
+    "category": "security",
+    "expect": {
+      "visual_type": "why_graph",
+      "max_tokens": 450,
+      "must_preserve_caveats": true,
+      "unsupported_causality": false
+    }
+  }
+]
