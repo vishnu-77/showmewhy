@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schema/execution-digest-v2.json",
+  "title": "ShowMeWhy Execution Digest V2",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["version", "run_id", "tool_name", "kind", "status", "summary", "raw_ref", "raw_tokens", "digest_tokens", "tokens_avoided", "parser"],
+  "properties": {
+    "version": {"const": "2.0"},
+    "run_id": {"type": "string", "pattern": "^run-[a-f0-9]{12}$"},
+    "tool_name": {"const": "Bash"},
+    "kind": {"enum": ["test", "lint", "build", "git", "generic"]},
+    "status": {"type": "string"},
+    "summary": {"type": "string", "minLength": 1},
+    "raw_ref": {"type": "string", "pattern": "^evidence://sha256/[a-f0-9]{64}$"},
+    "raw_tokens": {"type": "integer", "minimum": 0},
+    "digest_tokens": {"type": "integer", "minimum": 0},
+    "tokens_avoided": {"type": "integer", "minimum": 0},
+    "compression_pct": {"type": "number", "minimum": 0, "maximum": 100},
+    "parser": {
+      "type": "object",
+      "required": ["name", "confidence", "complete"],
+      "properties": {
+        "name": {"type": "string"},
+        "confidence": {"enum": ["high", "medium", "low"]},
+        "complete": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.0.0 - 2026-09-15
+
+### Added
+
+- Optional Claude Code `PostToolUse` runtime for verbose Bash output.
+- Content-addressed raw evidence retained before any output replacement.
+- Deterministic compression for pytest, Jest/Vitest, TypeScript, lint, git diff, and bounded generic logs.
+- Per-run execution digests with raw/digest token accounting and compression percentage.
+- Shadow mode for evaluating compression without modifying agent context.
+- Local evidence inspection and retention cleanup commands.
+
+### Safety
+
+- Only Bash is intercepted by default.
+- Unsupported and short output passes through unchanged.
+- Bash response shape and stderr are preserved.
+- Generic low-confidence digests are marked incomplete.
+- Any storage/replacement failure fails open.
+
+## 1.0.1 - 2026-09-15
+
+- Added Claude plugin and marketplace manifests.
+- Added deterministic plugin packaging validation and install guide.
+
 ## 1.0.0 - 2026-09-15
 
 ### Added
@@ -19,21 +43,8 @@
 
 ## 0.1.1 — Repository hygiene
 
-- Added MIT licence.
-- Added contribution and branch-management policy.
-- Added security reporting guidance.
-- Added pull request template and line-ending policy.
-- Expanded CI to test Python 3.11, 3.12, and 3.13 on `main` and `develop`.
+- Added MIT licence, contribution/branch policy, security guidance, PR template, and CI matrix.
 
 ## 0.1.0 — V0
 
-Initial private preview release of ShowMeWhy.
-
-- Added explicit `/showmewhy` Agent Skill invocation.
-- Added conclusion-first, evidence-backed response contract.
-- Added semantic visual selection for tables, trees, timelines, compact bars, and Why graphs.
-- Added default 300-token soft budget with `short`, `visual`, `why`, `compare`, `monitor`, `impact`, and `deep` modes.
-- Added risk/reward monitor with independently verifiable evidence, recurrence guard, risk level, and deterministic next-task token recommendation.
-- Added token reduction and operational CO2e-equivalent receipt with configurable assumptions.
-- Added deterministic impact and monitor scripts.
-- Added examples and evaluation tests.
+- Added explicit `/showmewhy` Agent Skill invocation, visual/evidence contract, risk/reward monitor, token/CO2e receipt, examples, and evals.

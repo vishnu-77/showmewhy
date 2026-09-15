@@ -1,0 +1,17 @@
+{
+  "description": "ShowMeWhy V2 context compression for verbose Bash tool output",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/showmewhy-post-tool-use.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
