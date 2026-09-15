@@ -34,7 +34,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("800–1,800 tokens", self.skill)
 
     def test_version_file(self):
-        self.assertEqual(VERSION.read_text(encoding="utf-8").strip(), "1.0.0")
+        self.assertEqual(VERSION.read_text(encoding="utf-8").strip(), "1.0.1")
 
     def test_skill_internal_references_are_portable(self):
         self.assertIn("references/showmewhy-receipt.schema.json", self.skill)
