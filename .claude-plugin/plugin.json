@@ -1,7 +1,7 @@
 {
   "name": "showmewhy",
-  "version": "1.0.1",
-  "description": "Turn verbose AI output into concise, visual, evidence-backed ShowMeWhy Receipts with risk-aware token budgets.",
+  "version": "2.0.0",
+  "description": "Turn verbose AI output into concise, evidence-backed receipts and optionally compress verbose Claude Code Bash results before they enter context.",
   "author": {
     "name": "Vishnu Prashanth",
     "url": "https://github.com/vishnu-77"
@@ -9,5 +9,6 @@
   "homepage": "https://github.com/vishnu-77/showmewhy",
   "repository": "https://github.com/vishnu-77/showmewhy",
   "license": "MIT",
-  "keywords": ["agent-skills", "explainability", "evidence", "token-efficiency", "claude-code"]
+  "keywords": ["agent-skills", "explainability", "evidence", "token-efficiency", "claude-code"],
+  "hooks": "./hooks/hooks.json"
 }

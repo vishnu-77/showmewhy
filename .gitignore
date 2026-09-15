@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 .env
+.showmewhy/
 
 # Local internal product strategy
 /internal.md
