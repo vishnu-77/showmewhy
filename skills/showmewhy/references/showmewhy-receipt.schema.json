@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schema/receipt-v1.json",
+  "title": "ShowMeWhy Receipt V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version","conclusion","signal","visual","why","caveats","confidence","monitor","impact"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "conclusion": {"type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string","minLength":1},"status":{"type":["string","null"]}}},
+    "signal": {"type":"object","additionalProperties":false,"required":["facts"],"properties":{"facts":{"type":"array","items":{"type":"string"},"maxItems":8}}},
+    "visual": {"type":"object","additionalProperties":false,"required":["type"],"properties":{"type":{"enum":["text","table","bars","tree","timeline","graph","none"]},"content":{"type":["string","null"]}}},
+    "why": {"type":"object","additionalProperties":false,"required":["nodes","edges"],"properties":{"nodes":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["id","type","text"],"properties":{"id":{"type":"string","minLength":1},"type":{"enum":["observation","evidence","inference","conclusion","caveat"]},"text":{"type":"string","minLength":1},"source":{"type":["string","null"]}}}},"edges":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["from","to","relation"],"properties":{"from":{"type":"string"},"to":{"type":"string"},"relation":{"enum":["supports","contradicts","derived_from","verified_by","correlated_with","caused_by"]}}}}}},
+    "caveats": {"type":"array","items":{"type":"string"},"maxItems":6},
+    "confidence": {"type":"object","additionalProperties":false,"required":["level"],"properties":{"level":{"enum":["high","medium","low","omitted"]},"basis":{"type":["string","null"]}}},
+    "monitor": {"type":"object","additionalProperties":false,"required":["evidence","guard","risk","state","next_budget_tokens"],"properties":{"evidence":{"type":"string","minLength":1},"guard":{"type":"string","minLength":1},"risk":{"enum":["low","medium","high"]},"state":{"enum":["rewarded","constrained"]},"next_budget_tokens":{"type":"integer","minimum":800,"maximum":2000}}},
+    "impact": {"type":"object","additionalProperties":false,"required":["output_tokens","budget_tokens"],"properties":{"source_tokens":{"type":["integer","null"],"minimum":0},"output_tokens":{"type":"integer","minimum":0},"budget_tokens":{"type":"integer","minimum":1},"presentation_reduction_pct":{"type":["number","null"],"minimum":0,"maximum":100},"co2e_equivalent_g":{"type":["number","null"],"minimum":0},"estimate_quality":{"enum":["high","medium","low","unavailable"]}}}
+  }
+}

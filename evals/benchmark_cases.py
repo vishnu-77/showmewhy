@@ -1,0 +1,27 @@
+"""Curated V1 behavioural benchmark matrix."""
+
+SCENARIOS = {'debugging': ['authentication regression after middleware change', 'database connection pool exhaustion', 'stale cache returns old permissions', 'race condition in job retry', 'timezone conversion off by one day', 'null dereference after optional field rollout', 'memory leak in worker process', 'API pagination skips records', 'deadlock during concurrent update', 'feature flag applied to wrong tenant', 'file descriptor leak under load', 'serialization mismatch between services'], 'architecture': ['choose Redis or PostgreSQL for agent memory', 'queue versus event stream for audit events', 'monolith versus services for early product', 'REST versus asynchronous command bus', 'single-region versus multi-region control plane', 'SQL versus graph store for provenance', 'centralised versus sidecar policy enforcement', 'push versus pull configuration distribution', 'synchronous versus eventual consistency', 'shared versus isolated tenant data plane', 'gateway versus library enforcement', 'object store versus database for raw evidence'], 'security': ['public inference endpoint without authentication', 'over-privileged CI service account', 'prompt injection reaches tool call', 'untrusted input written to agent memory', 'unsigned plugin installation', 'MCP server exposes destructive tool', 'cross-tenant cache key collision', 'secrets printed in build logs', 'SSRF through URL fetch tool', 'missing authorisation on retrieval result', 'agent can delegate broader permissions', 'audit log can be modified by workload'], 'research': ['compare two papers with conflicting findings', 'assess whether claim is actually novel', 'summarise evidence for agent memory benchmark', 'identify limitation in evaluation methodology', 'separate measured result from author speculation', 'compare benchmark populations across studies', 'trace claim to primary source', 'assess reproducibility of systems paper', 'find disagreement between industry and academic evidence', 'separate correlation from causal claim', 'summarise ablation evidence', 'identify missing baseline in paper'], 'comparison': ['compare Claude and Codex workflow constraints', 'compare two vector databases', 'compare two cloud queue services', 'compare two auth models for agents', 'compare two observability approaches', 'compare local and hosted inference', 'compare polling and webhooks', 'compare RBAC and capability tokens', 'compare JSON and event-sourced state', 'compare two CI platforms', 'compare two deployment strategies', 'compare two memory retrieval policies'], 'planning': ['plan migration from shared secrets to workload identity', 'plan staged database migration', 'plan agent security review', 'plan incident response exercise', 'plan benchmark for token compression', 'plan open-source release checklist', 'plan multi-region failover test', 'plan dependency upgrade programme', 'plan provenance rollout', 'plan red-team exercise', 'plan schema migration with rollback', 'plan deprecation of legacy API'], 'code_review': ['review auth middleware change', 'review retry logic for duplicate writes', 'review SQL transaction boundary', 'review async cancellation handling', 'review cache invalidation patch', 'review input validation change', 'review permission check refactor', 'review error handling in API client', 'review concurrency primitive change', 'review deserialisation code', 'review feature flag cleanup', 'review logging of sensitive fields'], 'ci_build': ['pytest failures after dependency upgrade', 'TypeScript compile errors after refactor', 'ESLint warning spike', 'Docker build layer failure', 'package lock conflict', 'coverage regression', 'integration test timeout', 'flaky end-to-end test', 'dependency vulnerability scan', 'schema generation mismatch', 'cross-platform build failure', 'release packaging error'], 'simple': ['confirm build passed', 'state current branch', 'identify changed file count', 'report test total', 'state configured timeout', 'name selected database', 'confirm feature flag state', 'state package version', 'report lint error count', 'identify deployment region', 'state whether guard exists', 'report current token budget']}
+VISUAL = {'debugging': 'graph', 'architecture': 'table', 'security': 'graph', 'research': 'table', 'comparison': 'table', 'planning': 'timeline', 'code_review': 'text', 'ci_build': 'bars', 'simple': 'none'}
+BUDGET = {'debugging': 300, 'architecture': 350, 'security': 450, 'research': 350, 'comparison': 350, 'planning': 350, 'code_review': 300, 'ci_build': 300, 'simple': 150}
+REQUIRES_EVIDENCE = {'debugging': True, 'architecture': True, 'security': True, 'research': True, 'comparison': True, 'planning': False, 'code_review': True, 'ci_build': True, 'simple': False}
+
+def build_cases():
+    cases=[]
+    for category, scenarios in SCENARIOS.items():
+        for i, scenario in enumerate(scenarios, 1):
+            cases.append({
+                "id": f"{category}-{i:02d}",
+                "category": category,
+                "scenario": scenario,
+                "expect": {
+                    "visual_type": VISUAL[category],
+                    "max_tokens": BUDGET[category],
+                    "must_lead_with_conclusion": True,
+                    "must_preserve_material_caveats": True,
+                    "unsupported_causality": False,
+                    "requires_verifiable_evidence": REQUIRES_EVIDENCE[category],
+                },
+            })
+    return cases
+
+CASES = build_cases()

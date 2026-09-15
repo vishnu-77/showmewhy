@@ -1,27 +1,19 @@
-# Evals
+# ShowMeWhy evals
 
-V0 evals focus on five behaviours:
+The V1 suite contains deterministic contract tests plus a 108-case behavioural benchmark matrix spanning debugging, architecture, security, research, comparison, planning, code review, CI/build output and simple answers.
 
-1. conclusion-first concision
-2. retention of material facts and caveats
-3. appropriate visual selection
-4. evidence/inference separation and causal integrity
-5. correct token/impact arithmetic
-
-Run the deterministic impact tests with:
+Run:
 
 ```bash
-python3 -m unittest evals/test_impact.py -v
+python -m unittest discover -s evals -p 'test_*.py'
 ```
 
-The cases in `cases.json` are fixtures for agent-level behavioural evaluation. They intentionally avoid prescribing exact wording; the invariant is information quality per token, not template matching.
+## What the deterministic tests enforce
 
-## Risk / reward monitor
+- impact arithmetic and terminology;
+- risk/reward monitor bounds;
+- skill contract invariants;
+- ShowMeWhy Receipt V1 structure;
+- benchmark size, category coverage and routing expectations.
 
-`test_monitor.py` validates the V0 deterministic budget policy:
-
-- verified evidence + recurrence guard -> REWARDED band (1,200–2,000)
-- missing verification or guard -> CONSTRAINED band (800–1,800)
-- risk chooses the recommendation within the active band
-
-The monitor is advisory in Skill-only V0; it must not claim host-level enforcement.
+The behavioural cases are prompts/expectations for cross-agent evaluation. They do not pretend that static unit tests can prove human preference or semantic correctness. Those metrics require recorded model runs and human/automated scoring.

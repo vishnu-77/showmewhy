@@ -2,7 +2,7 @@
 
 **Don't tell me everything. Show me why.**
 
-ShowMeWhy is a small Agent Skill that turns verbose AI output into a concise conclusion, the right visual structure, and an evidence-backed explanation.
+ShowMeWhy is an Agent Skill that turns verbose AI output into a concise, evidence-backed **ShowMeWhy Receipt**: what happened, why it is justified, what could change the conclusion, and what reasoning budget should come next.
 
 ```text
 /showmewhy
@@ -87,9 +87,40 @@ You can also give it a target:
 /showmewhy visual
 /showmewhy monitor
 /showmewhy short
+/showmewhy json
 ```
 
 The default output has a **300-token soft budget**. Correctness and material caveats override the budget.
+
+## The ShowMeWhy Receipt
+
+V1 standardises the output contract so the same semantics apply across debugging, security, architecture, research and comparison tasks:
+
+```text
+CONCLUSION
+<answer first>
+
+SIGNAL
+<material facts only>
+
+WHY
+<evidence → inference → conclusion>
+
+CAVEAT / CONFIDENCE
+<only when useful and defensible>
+
+MONITOR
+Evidence  <verifiable source-backed line>
+Guard     <recurrence-detection check>
+Risk      LOW | MEDIUM | HIGH
+Budget    <next-task recommendation>
+
+────────────────────────────────
+ShowMeWhy · <used> / <budget> tokens · <reduction>
+<impact line when defensible>
+```
+
+The machine-readable contract is [`skills/showmewhy/references/showmewhy-receipt.schema.json`](skills/showmewhy/references/showmewhy-receipt.schema.json). Use `/showmewhy json` when another tool needs the receipt as structured data. A zero-dependency validator is included at `skills/showmewhy/scripts/validate_receipt.py`.
 
 ## Output contract
 
@@ -144,7 +175,7 @@ Budget policy:
 | `REWARDED` | verified evidence + concrete guard | 1,200–2,000 tokens |
 | `CONSTRAINED` | unverified evidence or missing guard | 800–1,800 tokens |
 
-Risk selects the point inside the band: LOW favours the upper bound, HIGH the lower bound. V0 reports the recommendation; runtime enforcement belongs to a future hook.
+Risk selects the point inside the band: LOW favours the upper bound, HIGH the lower bound. V1 reports the recommendation; runtime enforcement belongs to a future hook.
 
 Run the deterministic monitor directly:
 
@@ -182,7 +213,7 @@ There are two different claims:
 - **Presentation reduction**: a shorter representation of text that already exists. This does not retroactively avoid the compute used to generate the source.
 - **Operational CO₂e avoided**: valid only when tokens are actually prevented from being generated or consumed, such as a future pre-generation or hook integration.
 
-V0 reports the first as a **CO₂e equivalent**. It does not claim that previously generated emissions were undone.
+V1 reports the first as a **CO₂e equivalent**. It does not claim that previously generated emissions were undone.
 
 The reference calculator is available at:
 
@@ -222,9 +253,9 @@ The core skill follows the Agent Skills `SKILL.md` format. Claude Code exposes u
 
 The skill keeps runtime-specific behaviour minimal so the same core can be installed in other Agent Skills-compatible tools. Claude-specific invocation metadata is ignored by hosts that do not implement it.
 
-## V0 scope
+## V1 scope
 
-V0 is intentionally just the skill plus two small deterministic calculators:
+V1 remains intentionally lightweight: the skill, a stable receipt schema, deterministic validators/calculators, platform notes and the behavioural benchmark suite:
 
 ```text
 /showmewhy
@@ -244,7 +275,7 @@ risk/reward next-task budget
 impact receipt
 ```
 
-No account. No dashboard. No API key. No background service.
+No account. No dashboard. No API key. No background service. Runtime interception remains outside V1.
 
 ## Development
 
@@ -254,7 +285,7 @@ Run the test suite:
 python -m unittest discover -s evals -p 'test_*.py'
 ```
 
-Development is integrated through `develop`; feature work uses `feature/*` branches. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Development is integrated through `develop`; feature work uses `feature/*` branches. V1 includes a 108-case benchmark matrix across nine task categories. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
