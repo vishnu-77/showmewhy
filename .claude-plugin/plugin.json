@@ -1,0 +1,13 @@
+{
+  "name": "showmewhy",
+  "version": "1.0.1",
+  "description": "Turn verbose AI output into concise, visual, evidence-backed ShowMeWhy Receipts with risk-aware token budgets.",
+  "author": {
+    "name": "Vishnu Prashanth",
+    "url": "https://github.com/vishnu-77"
+  },
+  "homepage": "https://github.com/vishnu-77/showmewhy",
+  "repository": "https://github.com/vishnu-77/showmewhy",
+  "license": "MIT",
+  "keywords": ["agent-skills", "explainability", "evidence", "token-efficiency", "claude-code"]
+}
