@@ -8,29 +8,44 @@ from .common import estimate_tokens
 from .compressors import compress_text, replace_response_text, response_text
 from .digest import build_digest, persist_digest
 from .evidence import EvidenceStore
+from .policy import recommend_policy
 from .provenance import build_graph, persist_graph
 
 
 def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode: str | None = None, target_tokens: int | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    mode = (mode or os.getenv("SHOWMEWHY_MODE", "replace")).lower()
-    target_tokens = target_tokens or int(os.getenv("SHOWMEWHY_CONTEXT_BUDGET_TOKENS", "700"))
     tool_name = str(event.get("tool_name") or "")
     response = event.get("tool_response")
     text = response_text(tool_name, response)
-    if tool_name != "Bash" or text is None or estimate_tokens(text) <= target_tokens:
+    if tool_name != "Bash" or text is None:
         return {}, None
 
     base_cwd = cwd or event.get("cwd") or "."
+    policy = recommend_policy(base_cwd)
+    env_mode = os.getenv("SHOWMEWHY_MODE")
+    env_target = os.getenv("SHOWMEWHY_CONTEXT_BUDGET_TOKENS")
+    effective_mode = (mode or env_mode or policy["mode"]).lower()
+    effective_target = target_tokens or (int(env_target) if env_target else int(policy["target_tokens"]))
+
+    if estimate_tokens(text) <= effective_target:
+        return {}, None
+
     store = EvidenceStore(base_cwd)
     try:
         raw_ref = store.put(tool_name=tool_name, tool_input=event.get("tool_input"), tool_response=response, session_id=event.get("session_id"))
     except Exception:
         return {}, None
 
-    result = compress_text(text, target_tokens=target_tokens)
+    result = compress_text(text, target_tokens=effective_target)
     if result.text == text:
         return {}, None
     digest = build_digest(tool_name=tool_name, evidence_ref=raw_ref, raw_text=text, result=result, session_id=event.get("session_id"), tool_use_id=event.get("tool_use_id"))
+    digest["policy"] = {
+        "mode": effective_mode,
+        "target_tokens": effective_target,
+        "safety_lock": bool(policy.get("safety_lock")),
+        "samples": int(policy.get("samples", 0)),
+        "reason": policy.get("reason"),
+    }
 
     try:
         graph = build_graph(digest)
@@ -41,9 +56,9 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
         digest["caveats"].append("Provenance graph generation failed; inspect raw evidence directly.")
     persist_digest(digest, base_cwd)
 
-    if mode == "shadow":
+    if effective_mode == "shadow":
         return {}, digest
-    if mode != "replace":
+    if effective_mode != "replace":
         return {}, digest
 
     replacement = replace_response_text(tool_name, response, result.text + f"\nRaw evidence: {raw_ref}")

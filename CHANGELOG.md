@@ -1,54 +1,39 @@
 # Changelog
 
-## 3.0.0 - 2026-09-15
+## 4.0.0 - 2026-09-15
 
 ### Added
 
-- Typed provenance graphs generated from V2 execution digests and retained raw evidence.
-- Stable `evidence://` and `run://` addresses for inspectable evidence paths.
-- Typed provenance nodes and relationships for observations, evidence, conclusions, caveats, artefacts and changes.
-- Qualitative provenance confidence derived from parser confidence and completeness.
-- Deterministic run comparison for status, findings and compression deltas.
-- Local static provenance viewer with HTML escaping.
-- CLI commands for provenance inspection, run comparison and viewer generation.
+- Local adaptive context policy driven by verified operational feedback rather than task content.
+- Feedback signals for raw-evidence reopen events, parser completeness, achieved compression and material information loss.
+- Adaptive 500 / 700 / 1,100 token context targets based on observed outcomes.
+- Sticky safety lock: any reported material loss forces shadow mode with a 1,200-token threshold until manually cleared.
+- `feedback`, `policy`, and `policy-unlock` runtime commands.
+- Policy metadata attached to execution digests so each adaptive decision is inspectable.
 
-### Safety
+### Privacy and safety
 
-- `CAUSED_BY` edges require an explicit `causal_basis`; unsupported causal claims are rejected.
-- Provenance failure never destroys retained raw evidence or blocks the V2 fail-open compression path.
+- Policy feedback stores metrics only; it does not persist prompts, summaries, findings, code or raw tool output.
+- Environment or explicit CLI settings can override adaptive mode/target settings.
+- Raw evidence remains the source of truth and V2 fail-open behaviour is preserved.
+
+## 3.0.0 - 2026-09-15
+
+- Added typed provenance graphs grounded in V2 digests and raw evidence.
+- Added stable `evidence://` and `run://` addresses, causal-edge validation, run comparison and a local static viewer.
 
 ## 2.0.0 - 2026-09-15
 
-### Added
-
-- Optional Claude Code `PostToolUse` runtime for verbose Bash output.
-- Content-addressed raw evidence retained before any output replacement.
-- Deterministic compression for pytest, Jest/Vitest, TypeScript, lint, git diff, and bounded generic logs.
-- Per-run execution digests with raw/digest token accounting and compression percentage.
-- Shadow mode for evaluating compression without modifying agent context.
-- Local evidence inspection and retention cleanup commands.
-
-### Safety
-
-- Only Bash is intercepted by default.
-- Unsupported and short output passes through unchanged.
-- Bash response shape and stderr are preserved.
-- Generic low-confidence digests are marked incomplete.
-- Any storage/replacement failure fails open.
+- Added optional Claude Code Bash `PostToolUse` context compression.
+- Added content-addressed raw evidence, deterministic parsers, execution digests, shadow mode and real context-token accounting.
 
 ## 1.0.1 - 2026-09-15
 
-- Added Claude plugin and marketplace manifests.
-- Added deterministic plugin packaging validation and install guide.
+- Added Claude plugin and marketplace manifests, deterministic packaging validation and install guide.
 
 ## 1.0.0 - 2026-09-15
 
-- Formal ShowMeWhy Receipt V1 contract and JSON Schema.
-- `/showmewhy json` machine-readable receipt mode.
-- Zero-dependency receipt validator.
-- Explicit representation-routing grammar.
-- 108-case behavioural benchmark matrix across nine task categories.
-- Platform notes for Claude Code, Codex, and Cowork/knowledge-work usage.
+- Formalised the ShowMeWhy Receipt, JSON schema, representation grammar, 108-case benchmark and platform notes.
 
 ## 0.1.1 — Repository hygiene
 
@@ -56,4 +41,4 @@
 
 ## 0.1.0 — V0
 
-- Added explicit `/showmewhy` Agent Skill invocation, visual/evidence contract, risk/reward monitor, token/CO2e receipt, examples, and evals.
+- Added `/showmewhy`, visual/evidence contract, risk/reward monitor, token/CO2e receipt, examples, and evals.

@@ -1,7 +1,7 @@
 {
   "name": "showmewhy",
-  "version": "3.0.0",
-  "description": "Evidence-backed AI explanations with optional context compression and inspectable provenance for Claude Code.",
+  "version": "4.0.0",
+  "description": "Evidence-backed AI explanations with adaptive context compression, inspectable provenance and fail-safe local policy for Claude Code.",
   "author": {
     "name": "Vishnu Prashanth",
     "url": "https://github.com/vishnu-77"
@@ -9,6 +9,6 @@
   "homepage": "https://github.com/vishnu-77/showmewhy",
   "repository": "https://github.com/vishnu-77/showmewhy",
   "license": "MIT",
-  "keywords": ["agent-skills", "explainability", "provenance", "evidence", "token-efficiency", "claude-code"],
+  "keywords": ["agent-skills", "explainability", "provenance", "evidence", "context-compression", "token-efficiency", "claude-code"],
   "hooks": "./hooks/hooks.json"
 }

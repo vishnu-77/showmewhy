@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "ShowMeWhy plugin marketplace",
-    "version": "3.0.0"
+    "version": "4.0.0"
   },
   "plugins": [
     {
       "name": "showmewhy",
-      "description": "Evidence-backed explanation, context compression and inspectable provenance.",
+      "description": "Evidence-backed explanation, adaptive context compression and inspectable provenance.",
       "source": "./",
       "strict": false,
       "skills": ["./skills/showmewhy"]
