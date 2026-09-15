@@ -1,7 +1,7 @@
 ---
 name: showmewhy
 description: Re-present the current answer, result, investigation, comparison, or explanation as a concise conclusion, useful visual structure, and evidence-backed why graph. Use when the user explicitly invokes /showmewhy or asks to show the result and why without verbose narration.
-argument-hint: "[short|visual|why|compare|monitor|impact|deep] [question or scope]"
+argument-hint: "[short|visual|why|compare|monitor|impact|json|deep] [question or scope]"
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -23,9 +23,20 @@ Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 - `compare`: prioritise a compact comparison, normally a Markdown table, 350-token soft budget
 - `monitor`: show the one-line evidence, recurrence guard, risk, and deterministic next-task budget
 - `impact`: explain the token/CO₂e receipt or calculate it from available counts; do not re-answer the whole topic unless needed
+- `json`: emit a machine-readable ShowMeWhy Receipt V1 object conforming to `skills/showmewhy/references/showmewhy-receipt.schema.json`
 - `deep`: preserve more detail for complex or high-consequence analysis, 700-token soft budget
 
 If the remaining arguments contain a question or scope, apply ShowMeWhy to that target. Otherwise apply it to the most recent substantive answer, investigation, task result, or current topic.
+
+## Receipt contract
+
+Read `references/receipt-contract.md` before formatting a substantive answer. V1 treats the human output as a stable ShowMeWhy Receipt with consistent semantics: conclusion, signal, optional visual, evidence-backed WHY, caveats/confidence where useful, monitor, and impact. The human answer may omit empty/non-useful sections, but it must not change the meaning of fields across tasks.
+
+For representation choice, read `references/representation-routing.md`. Use the smallest representation that reduces reading.
+
+### `json` mode
+
+When invoked as `/showmewhy json`, emit only a JSON object matching `skills/showmewhy/references/showmewhy-receipt.schema.json`. Use `UNVERIFIED`/`MISSING` strings and `constrained` state when evidence or guard cannot be established. Do not fabricate source references, token counts, carbon estimates, confidence, or causality just to populate the schema.
 
 ## Response priority
 
@@ -142,7 +153,7 @@ Within the active band, risk selects the recommendation:
 - REWARDED: LOW 2,000 · MEDIUM 1,600 · HIGH 1,200
 - CONSTRAINED: LOW 1,800 · MEDIUM 1,300 · HIGH 800
 
-Use `scripts/monitor.py` when tool execution is available. In Skill-only V0 this is a recommendation, not a claim that the host runtime enforces the next call.
+Use `scripts/monitor.py` when tool execution is available. In Skill-only V1 this is a recommendation, not a claim that the host runtime enforces the next call.
 
 ### `monitor` mode
 
