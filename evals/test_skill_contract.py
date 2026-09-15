@@ -36,6 +36,10 @@ class SkillContractTests(unittest.TestCase):
     def test_version_file(self):
         self.assertEqual(VERSION.read_text(encoding="utf-8").strip(), "1.0.0")
 
+    def test_skill_internal_references_are_portable(self):
+        self.assertIn("references/showmewhy-receipt.schema.json", self.skill)
+        self.assertNotIn("skills/showmewhy/references/showmewhy-receipt.schema.json", self.skill)
+
 
 if __name__ == "__main__":
     unittest.main()
