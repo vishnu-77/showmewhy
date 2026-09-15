@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schema/provenance-graph-v3.json",
+  "title": "ShowMeWhy Provenance Graph V3",
+  "type": "object",
+  "required": ["version", "graph_id", "run_id", "confidence", "nodes", "edges"],
+  "properties": {
+    "version": {"const": "3.0"},
+    "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+    "nodes": {"type": "array"},
+    "edges": {"type": "array"}
+  }
+}
