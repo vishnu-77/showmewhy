@@ -2,27 +2,43 @@
 
 **Don't tell me everything. Show me why.**
 
-ShowMeWhy is an Agent Skill that turns verbose AI output into a concise, evidence-backed **ShowMeWhy Receipt**: what happened, why it is justified, what could change the conclusion, and what reasoning budget should come next.
+ShowMeWhy turns verbose agent output into a concise, evidence-backed receipt: **what happened, why it is justified, what could change the conclusion, and what it cost**.
 
 ```text
 /showmewhy
 ```
 
-## What it changes
+## Install
 
-**Before**
+### Claude Code plugin
 
-> A long explanation of what the agent inspected, commands it ran, several paragraphs of observations, repeated tool output, and the conclusion near the end.
+```text
+/plugin marketplace add vishnu-77/showmewhy
+/plugin install showmewhy@showmewhy
+```
 
-**After**
+Then invoke:
+
+```text
+/showmewhy
+```
+
+The repository is private during preview, so the local Git/GitHub environment must have access.
+
+### Agent Skill only
+
+```bash
+npx skills add vishnu-77/showmewhy --skill showmewhy
+```
+
+The Skill-only install provides the ShowMeWhy Receipt. The Claude plugin additionally enables the optional local runtime hook.
+
+## A ShowMeWhy Receipt
 
 ```text
 AUTH REGRESSION
 
 5 / 428 tests failed.
-
-Cause
-Session validation was bypassed after the middleware change.
 
 WHY
 
@@ -34,159 +50,19 @@ expired session accepted
       ↓
 5 authentication tests failed
 
-Confidence: HIGH
-
 MONITOR
-Evidence  tests/auth.spec.ts::rejects_expired_session — FAIL before fix, PASS after fix
+Evidence  tests/auth.spec.ts::rejects_expired_session — FAIL before, PASS after
 Guard     CI must keep `rejects_expired_session` green
 Risk      MEDIUM
 Budget    1,600 / 2,000 tokens · REWARDED
 
 ────────────────────────────────
-ShowMeWhy · ~184 / 300 tokens · ↓ 72%
-Est. operational CO₂e equivalent · ~0.26 g*
+ShowMeWhy · ~184 / 300 tokens · ↓72%
 ```
 
-`*` Low-confidence reference estimate unless a runtime-specific energy profile is supplied. See [impact methodology](skills/showmewhy/references/impact-methodology.md).
+The Why view is **observable provenance, not private chain-of-thought**. ShowMeWhy separates observations, evidence, inference, conclusions and caveats; correlation is not promoted to causation without support.
 
-## Install
-
-Using the Agent Skills CLI:
-
-```bash
-npx skills add vishnu-77/showmewhy --skill showmewhy
-```
-
-For Claude Code globally:
-
-```bash
-npx skills add vishnu-77/showmewhy --skill showmewhy -g -a claude-code
-```
-
-For Codex:
-
-```bash
-npx skills add vishnu-77/showmewhy --skill showmewhy -g -a codex
-```
-
-> The repository is private during the preview. Your Git credentials must have access to install it directly.
-
-## Use
-
-In Claude Code, invoke the skill explicitly:
-
-```text
-/showmewhy
-```
-
-You can also give it a target:
-
-```text
-/showmewhy why did these tests fail?
-/showmewhy compare Redis and PostgreSQL for this design
-/showmewhy visual
-/showmewhy monitor
-/showmewhy short
-/showmewhy json
-```
-
-The default output has a **300-token soft budget**. Correctness and material caveats override the budget.
-
-## The ShowMeWhy Receipt
-
-V1 standardises the output contract so the same semantics apply across debugging, security, architecture, research and comparison tasks:
-
-```text
-CONCLUSION
-<answer first>
-
-SIGNAL
-<material facts only>
-
-WHY
-<evidence → inference → conclusion>
-
-CAVEAT / CONFIDENCE
-<only when useful and defensible>
-
-MONITOR
-Evidence  <verifiable source-backed line>
-Guard     <recurrence-detection check>
-Risk      LOW | MEDIUM | HIGH
-Budget    <next-task recommendation>
-
-────────────────────────────────
-ShowMeWhy · <used> / <budget> tokens · <reduction>
-<impact line when defensible>
-```
-
-The machine-readable contract is [`skills/showmewhy/references/showmewhy-receipt.schema.json`](skills/showmewhy/references/showmewhy-receipt.schema.json). Use `/showmewhy json` when another tool needs the receipt as structured data. A zero-dependency validator is included at `skills/showmewhy/scripts/validate_receipt.py`.
-
-## Output contract
-
-ShowMeWhy uses up to four layers:
-
-1. **Conclusion** — answer first.
-2. **Signal** — only the facts that materially matter.
-3. **Visual** — a table, tree, timeline, compact bars, or graph when structure is easier to see than read.
-4. **Why** — observable evidence connected to the conclusion.
-
-Simple answers stay simple. A visual is not mandatory.
-
-## The Why graph
-
-The Why graph is provenance, not private chain-of-thought.
-
-```text
-[OBSERVATION]
-401 changed to 200
-        │
-     SUPPORTS
-        ▼
-[EVIDENCE]
-expired sessions accepted
-        │
-     SUPPORTS
-        ▼
-[CONCLUSION]
-authentication regression
-```
-
-ShowMeWhy separates observations, evidence, inference, conclusions, and caveats. It must not convert correlation into causation without support.
-
-## Risk / reward monitor
-
-For substantive conclusions, ShowMeWhy can add a compact monitor that makes the answer falsifiable and gives the next step a deterministic token envelope:
-
-```text
-MONITOR
-Evidence  tests/auth.spec.ts::rejects_expired_session — FAIL before fix, PASS after fix
-Guard     CI must keep `rejects_expired_session` green
-Risk      MEDIUM
-Budget    1,600 / 2,000 tokens · REWARDED
-```
-
-The evidence line must point to something another developer can check. The guard is the concrete test, invariant, policy, or alert that should detect the same failure class if it returns. It does **not** claim recurrence is impossible.
-
-Budget policy:
-
-| Monitor state | Requirement | Next-task band |
-|---|---|---:|
-| `REWARDED` | verified evidence + concrete guard | 1,200–2,000 tokens |
-| `CONSTRAINED` | unverified evidence or missing guard | 800–1,800 tokens |
-
-Risk selects the point inside the band: LOW favours the upper bound, HIGH the lower bound. V1 reports the recommendation; runtime enforcement belongs to a future hook.
-
-Run the deterministic monitor directly:
-
-```bash
-python3 skills/showmewhy/scripts/monitor.py \
-  --evidence-verified yes \
-  --guard-present yes \
-  --risk medium
-```
-
-## Token budgets
+## Response budgets
 
 | Invocation | Soft budget |
 |---|---:|
@@ -196,101 +72,136 @@ python3 skills/showmewhy/scripts/monitor.py \
 | `/showmewhy why` | 450 tokens |
 | `/showmewhy deep` | 700 tokens |
 
-The receipt reports approximate token reduction when exact host usage data is unavailable.
+Correctness and material caveats override compression.
 
-## Impact receipt
+## Risk / reward monitor
 
-ShowMeWhy can include a compact receipt:
+For substantive conclusions, the receipt can include one independently checkable evidence line and one recurrence guard.
+
+| State | Requirement | Next-task band |
+|---|---|---:|
+| `REWARDED` | verified evidence + concrete guard | 1,200–2,000 |
+| `CONSTRAINED` | unverified evidence or missing guard | 800–1,800 |
+
+The guard says **how recurrence is detected**. It does not claim the failure can never happen again.
+
+## V2 runtime: context compression
+
+When installed as a Claude Code plugin, ShowMeWhy can intercept verbose `Bash` `PostToolUse` results before they enter subsequent agent context.
 
 ```text
-────────────────────────────────
-ShowMeWhy · ~126 / 300 tokens · ↓ 68%
-Est. operational CO₂e equivalent · ~0.14 g*
+verbose Bash result
+       │
+       ├──────→ retained raw evidence
+       │
+       ▼
+deterministic digest
+       │
+       ▼
+agent context
 ```
 
-There are two different claims:
+V2 deliberately intercepts **Bash only** by default. Short and unsupported outputs pass through unchanged. Raw output is stored before replacement and Bash response structure/stderr are preserved.
 
-- **Presentation reduction**: a shorter representation of text that already exists. This does not retroactively avoid the compute used to generate the source.
-- **Operational CO₂e avoided**: valid only when tokens are actually prevented from being generated or consumed, such as a future pre-generation or hook integration.
+Runtime state stays local under `.showmewhy/`, which is Git-ignored.
 
-V1 reports the first as a **CO₂e equivalent**. It does not claim that previously generated emissions were undone.
-
-The reference calculator is available at:
+Shadow mode:
 
 ```bash
-python3 skills/showmewhy/scripts/impact.py \
-  --source-tokens 1000 \
-  --output-tokens 250 \
-  --budget 300
+SHOWMEWHY_MODE=shadow
 ```
 
-All energy, PUE, carbon-intensity and tree-equivalence assumptions are configurable.
+Manual target override:
 
-## Visual selection
+```bash
+SHOWMEWHY_CONTEXT_BUDGET_TOKENS=900
+```
 
-| Information | Default representation |
-|---|---|
-| Cause / evidence | Directed graph |
-| Comparison | Markdown table |
-| Sequence | Timeline |
-| Architecture | Component graph |
-| Hierarchy | Tree |
-| Distribution | Compact bars |
-| Dependencies | Dependency graph |
-| Simple result | Text only |
+## V3 provenance: prove the receipt
 
-The visual should reduce reading, not decorate the answer.
-
-## Examples
-
-- [Debugging](examples/debugging.md)
-- [Architecture](examples/architecture.md)
-- [Security](examples/security.md)
-
-## Compatibility
-
-The core skill follows the Agent Skills `SKILL.md` format. Claude Code exposes user-invocable skills through the `/` menu, so the intended Claude interaction is `/showmewhy`.
-
-The skill keeps runtime-specific behaviour minimal so the same core can be installed in other Agent Skills-compatible tools. Claude-specific invocation metadata is ignored by hosts that do not implement it.
-
-## V1 scope
-
-V1 remains intentionally lightweight: the skill, a stable receipt schema, deterministic validators/calculators, platform notes and the behavioural benchmark suite:
+Each compressed run can produce a typed provenance graph with stable local evidence addresses:
 
 ```text
-/showmewhy
-    ↓
-concise conclusion
-    +
-useful visual
-    +
-evidence-backed why
-    +
-one-line verifiable evidence
-    +
-recurrence guard
-    +
-risk/reward next-task budget
-    +
-impact receipt
+evidence://sha256/<digest>#tool_response
+run://<run-id>#summary
+run://<run-id>#findings/<n>
+run://<run-id>#status
 ```
 
-No account. No dashboard. No API key. No background service. Runtime interception remains outside V1.
+Relationships include `SUPPORTS`, `CONTRADICTS`, `DERIVED_FROM`, `OBSERVED_IN`, `VERIFIED_BY`, `CORRELATED_WITH`, and `CAUSED_BY`.
+
+`CAUSED_BY` is rejected unless an explicit causal basis exists.
+
+Inspect locally:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli provenance <run-id>
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli compare <before-run> <after-run>
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli view <run-id> --out provenance.html
+```
+
+## V4 adaptive policy: compress only when evidence supports it
+
+ShowMeWhy adapts its context target from local outcome metrics:
+
+- **700 tokens** — baseline while evidence is limited;
+- **500 tokens** — only after repeated low-reopen, high-completeness runs with useful compression;
+- **1,100 tokens** — when raw evidence is frequently reopened or parser completeness falls;
+- **shadow / 1,200 tokens** — sticky safety lock after any reported material information loss.
+
+Feedback is explicit:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli feedback <run-id> \
+  --reopened no \
+  --material-loss no
+```
+
+Inspect policy:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy
+```
+
+Clear a safety lock only after review:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy-unlock
+```
+
+Adaptive feedback stores only run IDs and operational metrics such as reopen state, parser completeness and compression percentage. It does **not** store task solutions, code, summaries or raw evidence in the policy log.
+
+## Token and CO₂e accounting
+
+ShowMeWhy distinguishes two claims:
+
+- **presentation reduction** — shorter text after material already exists;
+- **context avoided** — tokens actually prevented from entering subsequent model context by the runtime hook.
+
+Only the second can support a modelled **operational CO₂e avoided** estimate. Carbon estimates use explicit energy/PUE/carbon-intensity assumptions; no fixed token-to-tree conversion is claimed.
+
+See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md).
+
+## Machine-readable receipt
+
+```text
+/showmewhy json
+```
+
+The receipt schema lives at [`skills/showmewhy/references/showmewhy-receipt.schema.json`](skills/showmewhy/references/showmewhy-receipt.schema.json).
 
 ## Development
-
-Run the test suite:
 
 ```bash
 python -m unittest discover -s evals -p 'test_*.py'
 ```
 
-Development is integrated through `develop`; feature work uses `feature/*` branches. V1 includes a 108-case benchmark matrix across nine task categories. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Development flows through `feature/*` → `develop` → `release/*` → `main`.
 
 ## Security
 
-Please report security issues privately. See [SECURITY.md](SECURITY.md).
+See [`SECURITY.md`](SECURITY.md). Raw runtime evidence remains local unless the user explicitly moves or shares it.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
