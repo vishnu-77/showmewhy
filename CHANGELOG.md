@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.0.0 - 2026-09-15
+
+### Added
+
+- Typed provenance graphs generated from V2 execution digests and retained raw evidence.
+- Stable `evidence://` and `run://` addresses for inspectable evidence paths.
+- Typed provenance nodes and relationships for observations, evidence, conclusions, caveats, artefacts and changes.
+- Qualitative provenance confidence derived from parser confidence and completeness.
+- Deterministic run comparison for status, findings and compression deltas.
+- Local static provenance viewer with HTML escaping.
+- CLI commands for provenance inspection, run comparison and viewer generation.
+
+### Safety
+
+- `CAUSED_BY` edges require an explicit `causal_basis`; unsupported causal claims are rejected.
+- Provenance failure never destroys retained raw evidence or blocks the V2 fail-open compression path.
+
 ## 2.0.0 - 2026-09-15
 
 ### Added
@@ -26,20 +43,12 @@
 
 ## 1.0.0 - 2026-09-15
 
-### Added
-
 - Formal ShowMeWhy Receipt V1 contract and JSON Schema.
 - `/showmewhy json` machine-readable receipt mode.
 - Zero-dependency receipt validator.
 - Explicit representation-routing grammar.
 - 108-case behavioural benchmark matrix across nine task categories.
-- Deterministic V1 schema and benchmark integrity tests.
 - Platform notes for Claude Code, Codex, and Cowork/knowledge-work usage.
-
-### Changed
-
-- Standardised conclusion, signal, WHY, caveat/confidence, monitor, and impact semantics.
-- Clarified that V1 remains a user-invoked skill; runtime context interception is not part of this release.
 
 ## 0.1.1 — Repository hygiene
 

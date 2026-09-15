@@ -8,6 +8,7 @@ from .common import estimate_tokens
 from .compressors import compress_text, replace_response_text, response_text
 from .digest import build_digest, persist_digest
 from .evidence import EvidenceStore
+from .provenance import build_graph, persist_graph
 
 
 def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode: str | None = None, target_tokens: int | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -30,6 +31,14 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
     if result.text == text:
         return {}, None
     digest = build_digest(tool_name=tool_name, evidence_ref=raw_ref, raw_text=text, result=result, session_id=event.get("session_id"), tool_use_id=event.get("tool_use_id"))
+
+    try:
+        graph = build_graph(digest)
+        persist_graph(graph, base_cwd)
+        digest["provenance_ref"] = f"provenance://{graph['graph_id']}"
+        digest["provenance_confidence"] = graph["confidence"]
+    except Exception:
+        digest["caveats"].append("Provenance graph generation failed; inspect raw evidence directly.")
     persist_digest(digest, base_cwd)
 
     if mode == "shadow":
