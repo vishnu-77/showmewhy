@@ -1,53 +1,43 @@
 # ShowMeWhy runtime
 
-The runtime is optional. `/showmewhy` remains useful without it.
+The runtime is optional and local. The `/showmewhy` Skill works without it.
 
-## V2: context compression
+## Context compression
 
-V2 can compress verbose Claude Code `Bash` tool results before they enter agent context. It stores raw evidence first, preserves the Bash result shape and fails open on unsupported output.
+Claude Code `Bash` results above the active context target can be compacted after raw output is stored under `.showmewhy/evidence/`. Unsupported or short output fails open.
 
-```bash
-SHOWMEWHY_MODE=shadow
-SHOWMEWHY_CONTEXT_BUDGET_TOKENS=700
-```
+## Provenance
 
-Runtime state is local under `.showmewhy/` and is Git-ignored.
-
-Inspect raw evidence:
+Compressed runs produce execution digests and typed provenance graphs under `.showmewhy/runs/` and `.showmewhy/provenance/`.
 
 ```bash
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli inspect evidence://sha256/<digest>
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli provenance <run-id>
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli compare <before> <after>
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli view <run-id> --out provenance.html
 ```
 
-## V3: provenance
+## Adaptive policy
 
-Each compressed run also receives a typed provenance graph grounded in its execution digest and retained raw evidence.
-
-Inspect a graph:
+V4 uses feedback metrics only. It never copies run summaries, findings, code or raw tool output into the policy log.
 
 ```bash
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli provenance run-012345abcdef
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli feedback <run-id> --reopened no --material-loss no
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy
 ```
 
-Compare two runs:
+Policy bands:
+
+| Condition | Mode | Target |
+|---|---|---:|
+| fewer than 3 feedback samples | replace | 700 |
+| low reopen + ≥90% complete + useful compression | replace | 500 |
+| reopen ≥35% or completeness <75% | replace | 1,100 |
+| any reported material loss | shadow | 1,200 |
+
+Material loss creates a sticky safety lock. It can only be cleared explicitly:
 
 ```bash
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli compare run-before run-after
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy-unlock
 ```
 
-Create a local static viewer:
-
-```bash
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli view run-012345abcdef --out provenance.html
-```
-
-Addresses are stable within retained local runtime data:
-
-```text
-evidence://sha256/<digest>#tool_response
-run://<run-id>#summary
-run://<run-id>#findings/<n>
-run://<run-id>#status
-```
-
-`CAUSED_BY` relationships are rejected unless an explicit causal basis is attached. Correlation is never silently upgraded to causation.
+Explicit `SHOWMEWHY_MODE` and `SHOWMEWHY_CONTEXT_BUDGET_TOKENS` values override the adaptive recommendation.

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schema/adaptive-policy-v4.json",
+  "title": "ShowMeWhy Adaptive Policy V4",
+  "type": "object",
+  "required": ["version", "mode", "target_tokens", "safety_lock", "samples", "reason"],
+  "properties": {
+    "version": {"const": "4.0"},
+    "mode": {"enum": ["replace", "shadow"]},
+    "target_tokens": {"type": "integer", "minimum": 300, "maximum": 2000},
+    "safety_lock": {"type": "boolean"},
+    "samples": {"type": "integer", "minimum": 0},
+    "reason": {"type": "string", "minLength": 1}
+  }
+}
