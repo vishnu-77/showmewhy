@@ -1,51 +1,53 @@
-# ShowMeWhy V2 runtime
+# ShowMeWhy runtime
 
-V2 adds optional **pre-context compression** for verbose Claude Code `Bash` tool results. `/showmewhy` still works without the runtime.
+The runtime is optional. `/showmewhy` remains useful without it.
 
-## Contract
+## V2: context compression
 
-1. Receive the `PostToolUse` event on stdin.
-2. Ignore non-Bash, short, or unsupported outputs.
-3. Persist the complete raw tool response under `.showmewhy/evidence/`.
-4. Produce a deterministic digest for recognised test/build/lint/git output.
-5. Persist run metrics under `.showmewhy/runs/`.
-6. In `replace` mode, return `updatedToolOutput` while preserving the Bash response shape.
-7. Fail open if storage, parsing, or replacement is unsafe.
-
-Only Bash is enabled by default. Compressing file reads or arbitrary MCP payloads can remove semantics needed by the agent, so those surfaces are deliberately excluded from V2.
-
-## Modes
-
-Default:
-
-```bash
-SHOWMEWHY_MODE=replace
-```
-
-Shadow evaluation without replacement:
+V2 can compress verbose Claude Code `Bash` tool results before they enter agent context. It stores raw evidence first, preserves the Bash result shape and fails open on unsupported output.
 
 ```bash
 SHOWMEWHY_MODE=shadow
-```
-
-Context target:
-
-```bash
 SHOWMEWHY_CONTEXT_BUDGET_TOKENS=700
 ```
 
-## Evidence
+Runtime state is local under `.showmewhy/` and is Git-ignored.
 
-Raw evidence is content-addressed:
-
-```text
-evidence://sha256/<digest>
-```
-
-Inspect it locally:
+Inspect raw evidence:
 
 ```bash
 PYTHONPATH=runtime python3 -m showmewhy_runtime.cli inspect evidence://sha256/<digest>
 ```
 
-Runtime state is local and Git-ignored.
+## V3: provenance
+
+Each compressed run also receives a typed provenance graph grounded in its execution digest and retained raw evidence.
+
+Inspect a graph:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli provenance run-012345abcdef
+```
+
+Compare two runs:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli compare run-before run-after
+```
+
+Create a local static viewer:
+
+```bash
+PYTHONPATH=runtime python3 -m showmewhy_runtime.cli view run-012345abcdef --out provenance.html
+```
+
+Addresses are stable within retained local runtime data:
+
+```text
+evidence://sha256/<digest>#tool_response
+run://<run-id>#summary
+run://<run-id>#findings/<n>
+run://<run-id>#status
+```
+
+`CAUSED_BY` relationships are rejected unless an explicit causal basis is attached. Correlation is never silently upgraded to causation.
