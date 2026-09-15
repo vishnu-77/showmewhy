@@ -1,0 +1,21 @@
+{
+  "name": "showmewhy",
+  "owner": {
+    "name": "Vishnu Prashanth"
+  },
+  "metadata": {
+    "description": "ShowMeWhy plugin marketplace",
+    "version": "1.0.1"
+  },
+  "plugins": [
+    {
+      "name": "showmewhy",
+      "description": "Concise, visual, evidence-backed AI explanations with risk-aware token budgets.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/showmewhy"
+      ]
+    }
+  ]
+}
