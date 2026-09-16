@@ -1,6 +1,6 @@
 <div align="center">
 
-# ShowMeWhy
+<img src="brand/showmewhy-lockup.svg" alt="ShowMeWhy" width="520">
 
 **Review only what the AI couldn't prove.**
 
@@ -106,6 +106,40 @@ Run migrate → write → rollback → read.
 </tr>
 </table>
 
+## When the answer changes
+
+Agents often discover the decisive fact **after** a plan or conclusion has already been formed. ShowMeWhy detects that state change automatically rather than explaining the whole session again.
+
+```text
+Earlier
+PI-901 can proceed after the planned NetworkPolicy work.
+
+Later evidence
+hl2-saas-helm pins shared charts v1.5.0.
+PI-823 is fixed only in v1.6.1.
+
+/showmewhy:showmewhy
+
+SHOWMEWHY · DELTA
+
+CHANGED
+PI-901 cannot safely proceed until PI-906 updates the chart pin.
+
+BROKEN ASSUMPTION
+The consumed shared-chart version is safe for NetworkPolicy enforcement.
+
+NEW EVIDENCE
+v1.5.0 is pinned; the required PI-823 fix lands in v1.6.1.
+
+BLOCKER
+PI-906 · bump the shared-chart pin.
+
+DO NEXT
+Merge PI-906, then run the planned maintenance-window smoke tests.
+```
+
+The core verifier is unchanged. Context Delta simply compares the earlier and current verification states and exposes **what changed, what assumption broke, and what now matters**.
+
 ## The output
 
 Default ShowMeWhy output has three jobs:
@@ -116,7 +150,15 @@ NEEDS YOU   only material claims still open or refuted
 DO NEXT     one action that closes the highest-value gap
 ```
 
-No proof DAG. No mandatory MONITOR block. No carbon footer. No catalogue of every passing check.
+When new evidence materially changes an earlier result, the same command switches to:
+
+```text
+CHANGED             the current defensible conclusion
+BROKEN ASSUMPTION   the relied-upon premise invalidated by evidence
+DO NEXT             one action that resolves the changed obligation
+```
+
+No proof DAG. No mandatory MONITOR block. No carbon footer. No catalogue of every passing check. No retrospective story about how the agent eventually noticed the issue.
 
 If everything material can be independently settled:
 
@@ -141,8 +183,9 @@ Use `why` mode when you actually want the expanded claim/witness ledger.
 3. **Every material claim gets an obligation.** What would establish it? What would refute it?
 4. **Prefer witnesses over prose.** Executions, sources, measurements, invariants, boundaries, regressions and counterexamples beat another explanation.
 5. **Broad claims get attacked.** “All”, “safe”, “backwards compatible”, “no regression”, and “production-ready” should trigger counterexample or boundary checks.
-6. **Only three states exist.** `VERIFIED`, `REFUTED`, `OPEN`.
-7. **Default output shows the remaining work.** At most three unresolved items, then one concrete `DO NEXT`.
+6. **Only three claim states exist.** `VERIFIED`, `REFUTED`, `OPEN`.
+7. **New evidence can reopen old conclusions.** A prior `VERIFIED` result is not permanent if a current witness invalidates a relied-upon assumption.
+8. **Default output shows the remaining work.** At most three unresolved items, then one concrete `DO NEXT`.
 
 The full contract lives in [`skills/showmewhy/SKILL.md`](skills/showmewhy/SKILL.md).
 
@@ -150,16 +193,16 @@ The full contract lives in [`skills/showmewhy/SKILL.md`](skills/showmewhy/SKILL.
 
 The verification primitive is domain-general. The witnesses change; the contract does not.
 
-| Domain | Material claim | Example witness | Typical unresolved gap |
+| Domain | Material claim | Example witness | Typical unresolved or changed state |
 |---|---|---|---|
 | Code | “migration is backwards compatible” | old-client regression fixture | legacy client never exercised |
-| Policy | “all production identities require MFA” | clause + exception search | legacy bypass exists |
+| Policy | “all production identities require MFA” | clause + exception search | legacy bypass refutes the universal claim |
 | Research | “method reduces energy use” | direct measurement | only token proxy measured |
-| Contract | “all notice periods are 14 days” | clause search across schedules | conflicting 30-day clause |
+| Contract | “all notice periods are 14 days” | clause search across schedules | Schedule B still says 30 days |
 | Data | “migration preserves semantics” | invariant + downstream fixture | null behaviour untested |
 | Architecture | “single point of failure removed” | dependency/failure probe | shared Redis still exists |
 
-Deterministic reference cases for these domains live in [`evals/reference_cases/`](evals/reference_cases/).
+Deterministic reference cases live in [`evals/reference_cases/`](evals/reference_cases/) and temporal Context Delta cases live in [`evals/context_delta_cases.json`](evals/context_delta_cases.json).
 
 ## Why this is different
 
@@ -167,9 +210,9 @@ Most review systems **add findings**. ShowMeWhy's target is the opposite: **shri
 
 A semantic diff can reorganise a large change. A receipt can prove that an action happened. ShowMeWhy asks a different question:
 
-> **What material part of this result is still not independently established?**
+> **What material part of this result is still not independently established — and did new evidence invalidate what we believed before?**
 
-That means a 500-line or 15,000-line change should not become a 100-line summary. If 497 of 500 material claims can be independently settled, the default surface should contain only the remaining three.
+That means a 500-line or 15,000-line change should not become a 100-line summary. If 497 of 500 material claims can be independently settled, the default surface should contain only the remaining three. If later evidence breaks one of the 497, that claim returns to the surface.
 
 ## How it works
 
@@ -184,31 +227,42 @@ CLOSURE     VERIFIED · REFUTED · OPEN
 SURFACE     only unresolved material claims reach the default output
 ```
 
+For temporal changes, it adds four internal objects without changing the core verifier:
+
+```text
+CONTEXT SET  what was actually inspected
+ASSUMPTION   what had to remain true
+INVALIDATOR  new evidence that breaks the assumption
+DELTA        the material state change
+```
+
 The human does not need to see that machinery unless they ask for `why` or `json` mode.
 
 ## Views
 
 ```text
-/showmewhy:showmewhy             unresolved verification surface
+/showmewhy:showmewhy             unresolved surface or automatic Context Delta
 /showmewhy:showmewhy short       one gap + one next action
 /showmewhy:showmewhy why         claim · state · witness/gap ledger
 /showmewhy:showmewhy compare     compact comparison
 /showmewhy:showmewhy monitor     session-level verification state
 /showmewhy:showmewhy impact      context/token/operational impact
-/showmewhy:showmewhy json        machine-readable verification surface
+/showmewhy:showmewhy json        machine-readable verification or delta surface
 /showmewhy:showmewhy deep        broader verification, same compact final surface
 ```
 
 ## Battle-tested reference behaviour
 
-The deterministic reference engine is intentionally small enough to inspect:
+The deterministic reference engines are intentionally small enough to inspect:
 
 ```bash
 python skills/showmewhy/scripts/verification_surface.py \
   evals/reference_cases/code-auth.json
 ```
 
-Current fixtures cover code, policy, research, contracts, data and architecture. The scale test also creates **500 material claims**, verifies 497, leaves 3 open, and asserts that the default human output does not replay the 497 settled claims.
+Current fixtures cover code, policy, research, contracts, data and architecture. Context Delta fixtures additionally cover a cross-repository infrastructure blocker, a research proxy claim, a policy exception, and a contract schedule conflict.
+
+The scale regression creates **500 material claims**, verifies 497, leaves 3 open, and asserts that the default human output does not replay the 497 settled claims.
 
 Run the complete suite:
 
@@ -221,9 +275,18 @@ python -m unittest discover -s evals -p 'test_*.py'
 <details>
 <summary><strong>Witness closure</strong></summary>
 
-The deterministic reference implementation lives at [`skills/showmewhy/scripts/verification_surface.py`](skills/showmewhy/scripts/verification_surface.py). A material claim is `VERIFIED` only when its required witness kinds are present and no current witness refutes it. A refuting witness wins over supporting evidence. Missing, inconclusive, conflicting, stale or human-only evidence leaves the claim `OPEN`.
+The deterministic verification implementation lives at [`skills/showmewhy/scripts/verification_surface.py`](skills/showmewhy/scripts/verification_surface.py). A material claim is `VERIFIED` only when its required witness kinds are present and no current witness refutes it. A refuting witness wins over supporting evidence. Missing, inconclusive, conflicting, stale or human-only evidence leaves the claim `OPEN`.
 
-The V2 machine contract is [`skills/showmewhy/references/verification-surface.schema.json`](skills/showmewhy/references/verification-surface.schema.json).
+The machine contract is [`skills/showmewhy/references/verification-surface.schema.json`](skills/showmewhy/references/verification-surface.schema.json).
+
+</details>
+
+<details>
+<summary><strong>Context Delta</strong></summary>
+
+[`skills/showmewhy/scripts/context_delta.py`](skills/showmewhy/scripts/context_delta.py) compares previous and current verification states, detects material claim transitions, records invalidated assumptions, identifies newly inspected context, and renders only the decision-relevant change.
+
+Its machine contract is [`skills/showmewhy/references/context-delta.schema.json`](skills/showmewhy/references/context-delta.schema.json).
 
 </details>
 
@@ -253,6 +316,12 @@ ShowMeWhy separates presentation reduction from context actually avoided. Shorte
 See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md).
 
 </details>
+
+## The mark
+
+The Socratic thinker represents scrutiny before acceptance. Its flowing hair contains a quiet `S`; the smaller inner profile represents dialogue, challenge and the question behind ShowMeWhy: **how do you know?**
+
+Brand construction and usage live in [`brand/`](brand/README.md).
 
 ## Proof
 

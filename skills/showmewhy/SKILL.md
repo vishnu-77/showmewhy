@@ -1,6 +1,6 @@
 ---
 name: showmewhy
-description: Verify a fresh answer or completed agent result, independently settle material claims where possible, and surface only the smallest remaining verification gap. Use when the user explicitly invokes ShowMeWhy or asks what still needs to be checked before trusting a result.
+description: Verify a fresh answer or completed agent result, independently settle material claims where possible, surface only the smallest remaining verification gap, and detect when new evidence changes an earlier conclusion or relied-upon assumption.
 argument-hint: "[short|why|compare|monitor|impact|json|deep] [question or scope]"
 user-invocable: true
 disable-model-invocation: true
@@ -12,24 +12,28 @@ ShowMeWhy answers one question: **what still needs human verification before thi
 
 The default response is not a summary, report, graph, or chain-of-thought. Internally, decompose the result into material claims, define what would establish or refute each claim, gather observable witnesses, scrutinise them, and close what can be independently settled. Externally, show only the unresolved verification surface and one next action.
 
+When the current evidence materially changes a previous conclusion, plan, or assumption, ShowMeWhy should automatically switch to a compact **Context Delta** surface: what changed, which assumption broke, what new evidence caused the change, what it affects, and what to do next. This is an internal renderer, **not a new user mode**.
+
 Never expose, reconstruct, or claim to expose private chain-of-thought. Agent assertions, prior prose, confidence language, or a model saying "done" are not independent evidence.
 
 ## Invocation semantics
 
 Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 
-- no mode: verification surface, 220-token soft budget
+- no mode: verification surface, or Context Delta when a material state change is detected; 220-token soft budget
 - `short`: one unresolved claim and one next action, 100-token soft budget
 - `why`: expanded claim / witness / gap ledger, 450-token soft budget
 - `compare`: compact comparison, normally a Markdown table, 300-token soft budget
 - `monitor`: session-level verification state only; never include this automatically in ordinary runs
 - `impact`: context/token/operational-impact accounting only
-- `json`: emit a machine-readable Verification Surface object conforming to `references/verification-surface.schema.json`
+- `json`: emit the applicable machine-readable Verification Surface or Context Delta object
 - `deep`: perform broader verification for complex or high-consequence work, while keeping the final human surface gap-first, 700-token soft budget
 
 If the arguments contain a fresh question or task, answer or investigate it first, then verify the material claims in that result. **Do not refuse merely because no prior answer exists.** Use tools, files, tests, commands, web research, measurements, or source inspection when needed.
 
 If no fresh question is supplied, verify the most recent substantive answer, task result, investigation, change, or decision. Reuse current evidence when it is still valid; independently re-check material claims when the original evidence is missing, stale, self-reported, or insufficient.
+
+If the current conversation contains an earlier conclusion or plan and later evidence materially changes it, compare the two states before rendering the answer. Do not narrate the chronology of how the agent eventually noticed the issue. Surface the decision-relevant delta.
 
 ## Internal verification pipeline
 
@@ -42,7 +46,61 @@ Do this internally; do not print the pipeline as a flow diagram.
 5. **CLOSURE** — mark the claim `VERIFIED`, `REFUTED`, or `OPEN`.
 6. **SURFACE** — show only material `OPEN` or `REFUTED` claims by default.
 
-Read `references/receipt-contract.md` for the human contract and `references/verification-surface.schema.json` for machine-readable output.
+Read `references/receipt-contract.md` for the human contract and `references/verification-surface.schema.json` for machine-readable verification output.
+
+## Temporal verification: Context Delta
+
+Context Delta extends the same verification engine across time. It does **not** replace claim/witness closure.
+
+Use it when all three are present:
+
+1. an earlier material conclusion, plan, or decision exists;
+2. new observable evidence arrives later;
+3. that evidence changes a material claim state, invalidates a relied-upon assumption, or reveals a context area whose absence mattered.
+
+Internally track four additional objects:
+
+- **CONTEXT SET** — evidence domains or systems actually inspected for the earlier conclusion
+- **ASSUMPTION** — a proposition that had to hold for that conclusion to remain valid
+- **INVALIDATOR** — new observable evidence that contradicts the assumption or degrades the earlier claim
+- **DELTA** — the material difference between the previous and current verification states
+
+A Context Delta should be derived from observable state transitions such as `VERIFIED -> REFUTED`, `VERIFIED -> OPEN`, `OPEN -> VERIFIED`, or an invalidated assumption. Do not invent a broken assumption merely to create a Delta.
+
+When available, `scripts/context_delta.py` is the deterministic reference implementation and `references/context-delta.schema.json` is the machine contract.
+
+### Delta human output
+
+When a material state change exists, prefer this instead of the ordinary verification surface:
+
+```text
+SHOWMEWHY · DELTA
+
+CHANGED
+<current narrow conclusion>
+
+BROKEN ASSUMPTION
+<one relied-upon assumption invalidated by new evidence>
+
+NEW EVIDENCE
+<smallest decisive new witness>
+
+IMPACT
+<what this changes or blocks, only if material>
+
+MISSED
+<context area absent from the earlier decision surface, only when observable>
+
+BLOCKER
+<explicit blocker, only when one exists>
+
+DO NEXT
+<one action that resolves the highest-value changed obligation>
+```
+
+Omit empty sections. Show one broken assumption by default. Do not turn Context Delta into a retrospective essay, self-defence, or a chronology of agent actions.
+
+If new evidence improves rather than degrades the state, use `RESOLVED` instead of `CHANGED`. If no material state changed, keep the normal verification surface; do not manufacture a Delta.
 
 ## Witness grammar
 
@@ -147,11 +205,13 @@ C2      OPEN       no pre-migration mobile token exercised
 C3      REFUTED    Schedule B still says 30 days
 ```
 
+If the current surface is a Delta, `why` may additionally show the changed claim state, relied-upon assumption, invalidating witness, and missing context area. Keep it a ledger, not a chronology.
+
 Include only observable witness references and missing obligations. Do not expose private reasoning.
 
 ## Visuals
 
-Verification itself is not visualised as a DAG. Read `references/representation-routing.md` only when the **subject matter** genuinely benefits from a table, timeline, hierarchy, architecture diagram, distribution, or comparison. The verification surface remains `VERIFIED / NEEDS YOU / DO NEXT`.
+Verification itself is not visualised as a DAG. Read `references/representation-routing.md` only when the **subject matter** genuinely benefits from a table, timeline, hierarchy, architecture diagram, distribution, or comparison. The verification surface remains `VERIFIED / NEEDS YOU / DO NEXT`; Context Delta remains `CHANGED / BROKEN ASSUMPTION / DO NEXT`.
 
 ## `monitor` mode
 
@@ -176,16 +236,16 @@ For carbon methodology, read `references/impact-methodology.md` and use `scripts
 
 ## `json` mode
 
-Emit only a JSON object matching `references/verification-surface.schema.json`. Do not fabricate witnesses, closure states, sources, risk, counts, or next actions just to populate the schema.
+Emit only a JSON object matching the applicable machine contract: `references/verification-surface.schema.json` for an ordinary surface or `references/context-delta.schema.json` for temporal state changes. Do not fabricate witnesses, closure states, assumptions, sources, coverage, risk, counts, or next actions just to populate a schema.
 
-When tool execution is available and a structured verification manifest exists, `scripts/verification_surface.py` provides the deterministic reference closure and rendering behaviour.
+When tool execution is available and a structured verification manifest exists, `scripts/verification_surface.py` provides deterministic reference closure and rendering behaviour. For temporal comparison, use `scripts/context_delta.py` when the before/current evidence states can be represented honestly.
 
 ## Stop condition
 
 Stop when the user can answer three questions:
 
-1. What is the result?
-2. What material part of it is still unverified or refuted?
-3. What single action would most reduce that remaining verification debt?
+1. What is the result now?
+2. What material part is still unverified/refuted, or what changed from the prior result?
+3. What single action would most reduce the remaining verification debt?
 
 Do not add a generic recap or closing paragraph.

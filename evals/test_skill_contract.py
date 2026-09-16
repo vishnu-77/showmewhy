@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
 README = ROOT / "README.md"
 VERSION = ROOT / "VERSION"
+DELTA_SCHEMA = ROOT / "skills" / "showmewhy" / "references" / "context-delta.schema.json"
+DELTA_SCRIPT = ROOT / "skills" / "showmewhy" / "scripts" / "context_delta.py"
+BRAND_MARK = ROOT / "brand" / "showmewhy-mark.svg"
 
 
 class SkillContractTests(unittest.TestCase):
@@ -31,6 +34,20 @@ class SkillContractTests(unittest.TestCase):
             self.assertIn(phrase, self.skill)
         self.assertIn("at most **3** unresolved items", self.skill)
         self.assertIn("show only material `OPEN` or `REFUTED` claims", self.skill)
+
+    def test_context_delta_is_automatic_not_a_user_mode(self):
+        self.assertIn("Context Delta", self.skill)
+        self.assertIn("not a new user mode", self.skill)
+        self.assertIn("BROKEN ASSUMPTION", self.skill)
+        self.assertIn("CONTEXT SET", self.skill)
+        self.assertIn("INVALIDATOR", self.skill)
+        self.assertIn("scripts/context_delta.py", self.skill)
+        self.assertIn("references/context-delta.schema.json", self.skill)
+        self.assertNotIn("- `delta`:", self.skill)
+
+    def test_context_delta_files_exist(self):
+        self.assertTrue(DELTA_SCHEMA.is_file())
+        self.assertTrue(DELTA_SCRIPT.is_file())
 
     def test_monitor_and_impact_are_not_default(self):
         self.assertIn("never include this automatically in ordinary runs", self.skill)
@@ -72,6 +89,18 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("Review only what the AI couldn't prove", self.readme)
         self.assertIn("Most tools show you more", self.readme)
         self.assertIn("Works beyond code", self.readme)
+
+    def test_readme_explains_temporal_verification(self):
+        self.assertIn("When the answer changes", self.readme)
+        self.assertIn("SHOWMEWHY · DELTA", self.readme)
+        self.assertIn("BROKEN ASSUMPTION", self.readme)
+
+    def test_socratic_brand_mark_is_public(self):
+        self.assertTrue(BRAND_MARK.is_file())
+        self.assertIn("brand/showmewhy-lockup.svg", self.readme)
+        mark = BRAND_MARK.read_text(encoding="utf-8")
+        self.assertIn("Socratic thinker", mark)
+        self.assertIn("inner profile", mark)
 
 
 if __name__ == "__main__":

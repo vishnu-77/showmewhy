@@ -1,0 +1,259 @@
+[
+  {
+    "name": "network-policy-cross-repo-blocker",
+    "manifest": {
+      "previous": {
+        "result": "PI-901 can proceed once the planned NetworkPolicy changes are ready and smoke-tested.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "PI-901 can safely proceed after policy changes are prepared",
+            "obligation": "Establish that the runtime chart version is compatible with enforcement",
+            "risk": "high",
+            "blocking": true,
+            "required_witnesses": ["source"],
+            "witnesses": [
+              {"kind": "source", "source": "SOC2 implementation plan", "outcome": "supports"}
+            ],
+            "next_action": "Schedule the maintenance-window smoke tests."
+          }
+        ]
+      },
+      "current": {
+        "result": "PI-901 cannot safely proceed until PI-906 updates the shared-chart pin.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "PI-901 can safely proceed after policy changes are prepared",
+            "obligation": "Establish that the runtime chart version is compatible with enforcement",
+            "risk": "high",
+            "blocking": true,
+            "required_witnesses": ["source", "boundary"],
+            "witnesses": [
+              {"kind": "source", "source": "hl2-saas-helm pin: v1.5.0", "outcome": "supports"},
+              {"kind": "boundary", "source": "PI-823 fix released in polaris-shared-helm-charts v1.6.1", "outcome": "refutes"}
+            ],
+            "unresolved_reason": "The consumed chart predates the NetworkPolicy fix required for safe enforcement.",
+            "next_action": "Merge PI-906, then run the planned maintenance-window smoke tests."
+          }
+        ]
+      },
+      "assumptions": [
+        {
+          "id": "A1",
+          "text": "The shared-chart version consumed by hl2-saas-helm is safe for NetworkPolicy enforcement.",
+          "claim_ids": ["C1"],
+          "witnesses": [
+            {
+              "source": "hl2-saas-helm pin + PI-823 release history",
+              "outcome": "refutes",
+              "finding": "v1.5.0 is pinned; PI-823 is fixed only in v1.6.1."
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "previous": ["Confluence requirement", "hl2-saas-terraform"],
+        "current": ["Confluence requirement", "hl2-saas-terraform", "hl2-saas-helm", "shared-chart release history", "PI-823 incident lineage"],
+        "missing_that_mattered": ["hl2-saas-helm", "shared-chart release history", "PI-823 incident lineage"]
+      },
+      "impact": [
+        "Default-deny can disrupt ExternalSecrets, AWS Load Balancer Controller, and Envoy Gateway."
+      ],
+      "blocker": "PI-906 · bump the hl2-saas-helm shared-chart pin to a release containing PI-823."
+    },
+    "expected": {
+      "status": "changed",
+      "broken_assumptions": ["A1"],
+      "transition": ["C1", "verified", "refuted"],
+      "next_claim": "C1"
+    }
+  },
+  {
+    "name": "research-energy-proxy",
+    "manifest": {
+      "previous": {
+        "result": "Method X reduces energy use.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "Method X reduces energy use",
+            "obligation": "Measure energy directly under equivalent conditions",
+            "risk": "medium",
+            "required_witnesses": ["source"],
+            "witnesses": [
+              {"kind": "source", "source": "draft results section", "outcome": "supports"}
+            ],
+            "next_action": "Publish the energy claim."
+          }
+        ]
+      },
+      "current": {
+        "result": "The token-reduction claim is measured; the energy-reduction claim is not directly established.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "Method X reduces energy use",
+            "obligation": "Measure energy directly under equivalent conditions",
+            "risk": "medium",
+            "required_witnesses": ["measurement"],
+            "witnesses": [],
+            "unresolved_reason": "Only token reduction was measured; no direct energy measurement exists.",
+            "next_action": "Narrow the claim to token reduction or collect direct energy measurements."
+          }
+        ]
+      },
+      "assumptions": [
+        {
+          "id": "A1",
+          "text": "Measured token reduction can be presented as measured energy reduction.",
+          "claim_ids": ["C1"],
+          "witnesses": [
+            {
+              "source": "impact methodology",
+              "outcome": "refutes",
+              "finding": "Token reduction is a proxy and does not constitute direct energy measurement."
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "previous": ["token benchmark"],
+        "current": ["token benchmark", "impact methodology"],
+        "missing_that_mattered": ["direct energy measurement"]
+      }
+    },
+    "expected": {
+      "status": "changed",
+      "broken_assumptions": ["A1"],
+      "transition": ["C1", "verified", "open"],
+      "next_claim": "C1"
+    }
+  },
+  {
+    "name": "policy-mfa-exception",
+    "manifest": {
+      "previous": {
+        "result": "All production identities require MFA.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "All production identities require MFA",
+            "obligation": "Confirm the mandatory clause and search all exception paths",
+            "risk": "high",
+            "required_witnesses": ["source"],
+            "witnesses": [
+              {"kind": "source", "source": "policy section 4.2", "outcome": "supports"}
+            ],
+            "next_action": "Treat MFA coverage as complete."
+          }
+        ]
+      },
+      "current": {
+        "result": "The universal MFA claim is false as written because a legacy-admin bypass remains.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "All production identities require MFA",
+            "obligation": "Confirm the mandatory clause and search all exception paths",
+            "risk": "high",
+            "required_witnesses": ["source", "counterexample"],
+            "witnesses": [
+              {"kind": "source", "source": "policy section 4.2", "outcome": "supports"},
+              {"kind": "counterexample", "source": "policy section 7.1 legacy-admin bypass", "outcome": "refutes"}
+            ],
+            "next_action": "Remove the bypass or narrow the policy claim."
+          }
+        ]
+      },
+      "assumptions": [
+        {
+          "id": "A1",
+          "text": "No production-identity exceptions exist outside the main MFA clause.",
+          "claim_ids": ["C1"],
+          "witnesses": [
+            {
+              "source": "policy section 7.1",
+              "outcome": "refutes",
+              "finding": "A legacy-admin exception bypasses the universal MFA requirement."
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "previous": ["main MFA clause"],
+        "current": ["main MFA clause", "exception sections"],
+        "missing_that_mattered": ["exception sections"]
+      }
+    },
+    "expected": {
+      "status": "changed",
+      "broken_assumptions": ["A1"],
+      "transition": ["C1", "verified", "refuted"],
+      "next_claim": "C1"
+    }
+  },
+  {
+    "name": "contract-schedule-conflict",
+    "manifest": {
+      "previous": {
+        "result": "Termination notice is 14 days throughout the contract.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "All termination notice periods are 14 days",
+            "obligation": "Inspect the main clause and all incorporated schedules",
+            "risk": "high",
+            "required_witnesses": ["source"],
+            "witnesses": [
+              {"kind": "source", "source": "main agreement clause 12", "outcome": "supports"}
+            ],
+            "next_action": "Use the amended notice period."
+          }
+        ]
+      },
+      "current": {
+        "result": "The contract contains conflicting termination notice periods.",
+        "claims": [
+          {
+            "id": "C1",
+            "text": "All termination notice periods are 14 days",
+            "obligation": "Inspect the main clause and all incorporated schedules",
+            "risk": "high",
+            "required_witnesses": ["source", "counterexample"],
+            "witnesses": [
+              {"kind": "source", "source": "main agreement clause 12: 14 days", "outcome": "supports"},
+              {"kind": "counterexample", "source": "Schedule B: 30 days", "outcome": "refutes"}
+            ],
+            "next_action": "Reconcile Schedule B with the amended main clause."
+          }
+        ]
+      },
+      "assumptions": [
+        {
+          "id": "A1",
+          "text": "The amended main-clause notice period propagated to every incorporated schedule.",
+          "claim_ids": ["C1"],
+          "witnesses": [
+            {
+              "source": "Schedule B",
+              "outcome": "refutes",
+              "finding": "Schedule B still specifies a 30-day notice period."
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "previous": ["main agreement"],
+        "current": ["main agreement", "Schedule B"],
+        "missing_that_mattered": ["incorporated schedules"]
+      }
+    },
+    "expected": {
+      "status": "changed",
+      "broken_assumptions": ["A1"],
+      "transition": ["C1", "verified", "refuted"],
+      "next_claim": "C1"
+    }
+  }
+]
