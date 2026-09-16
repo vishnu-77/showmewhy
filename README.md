@@ -15,31 +15,63 @@ Turn agent output into the smallest remaining verification surface.
 
 ## Install
 
-### macOS, Linux and WSL
+### Claude Code marketplace
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh | bash
-```
-
-### Windows PowerShell
-
-```powershell
-irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
-```
-
-Then use:
+Inside Claude Code:
 
 ```text
-/showmewhy:showmewhy
+/plugin marketplace add vishnu-77/showmewhy
+/plugin install showmewhy@showmewhy
+/reload-plugins
+```
+
+Then use the bare ShowMeWhy command:
+
+```text
+/showmewhy
 ```
 
 or give it a fresh question:
 
 ```text
-/showmewhy:showmewhy is this migration actually safe to ship?
+/showmewhy is this migration actually safe to ship?
+```
+
+Claude Code also recognises the plugin-qualified skill name internally, but ShowMeWhy's public command surface is `/showmewhy`.
+
+From a shell, the equivalent marketplace setup is:
+
+```bash
+claude plugin marketplace add vishnu-77/showmewhy
+claude plugin install showmewhy@showmewhy
+```
+
+### One-line installer
+
+macOS, Linux and WSL:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
 ```
 
 The installer sets up one marketplace-managed plugin containing the Skill, hooks and runtime, enables ShowMeWhy marketplace auto-update, and removes the older copied personal Skill if one exists.
+
+### Status and updates
+
+```text
+/showmewhy status
+/showmewhy update
+```
+
+`status` inspects the installed plugin, marketplace and update state. `update` uses Claude Code's native plugin updater for ShowMeWhy only. If a new version is installed during a running session, run `/reload-plugins` or start a new Claude Code session before expecting the new contract to be active.
+
+Claude Code can also update ShowMeWhy automatically in the background after startup when marketplace auto-update is enabled.
 
 ## What it does
 
@@ -50,7 +82,7 @@ It does **not** review everything and hand you a longer report. Internally it br
 ```text
 Agent: Done. Authentication migration complete. All tests pass.
 
-/showmewhy:showmewhy
+/showmewhy
 
 SHOWMEWHY
 
@@ -118,7 +150,7 @@ Later evidence
 hl2-saas-helm pins shared charts v1.5.0.
 PI-823 is fixed only in v1.6.1.
 
-/showmewhy:showmewhy
+/showmewhy
 
 SHOWMEWHY · DELTA
 
@@ -241,15 +273,25 @@ The human does not need to see that machinery unless they ask for `why` or `json
 ## Views
 
 ```text
-/showmewhy:showmewhy             unresolved surface or automatic Context Delta
-/showmewhy:showmewhy short       one gap + one next action
-/showmewhy:showmewhy why         claim · state · witness/gap ledger
-/showmewhy:showmewhy compare     compact comparison
-/showmewhy:showmewhy monitor     session-level verification state
-/showmewhy:showmewhy impact      context/token/operational impact
-/showmewhy:showmewhy json        machine-readable verification or delta surface
-/showmewhy:showmewhy deep        broader verification, same compact final surface
+/showmewhy             unresolved surface or automatic Context Delta
+/showmewhy short       one gap + one next action
+/showmewhy why         claim · state · witness/gap ledger
+/showmewhy compare     compact comparison
+/showmewhy monitor     session-level verification state
+/showmewhy impact      context/token/operational impact
+/showmewhy json        machine-readable verification or delta surface
+/showmewhy deep        broader verification, same compact final surface
+/showmewhy status      installed version, plugin and update health
+/showmewhy update      update ShowMeWhy through Claude Code's plugin updater
 ```
+
+Composition also remains inside the same command:
+
+```text
+/showmewhy /monitor /showmewhy /i-have-adhd -- investigate why auth tests fail
+```
+
+Only the first `/showmewhy` is a Claude Code command. The remaining slash-prefixed values are parsed as ShowMeWhy-owned stages.
 
 ## Battle-tested reference behaviour
 
@@ -295,7 +337,7 @@ Its machine contract is [`skills/showmewhy/references/context-delta.schema.json`
 
 Eligible verbose Bash `PostToolUse` results are stored as raw local evidence before deterministic parsing. Recognised result shapes can be replaced in model context with a smaller execution digest. Short, unsupported or low-confidence results are left untouched.
 
-Runtime state is local under `.showmewhy/`. Reported material loss forces the adaptive policy into shadow mode until explicitly reviewed and cleared.
+Runtime state is stored **outside the consumer repository** in ShowMeWhy's OS-level state directory, partitioned by a stable project namespace. On macOS this uses Application Support, on Linux XDG/local state, and on Windows Local AppData. `SHOWMEWHY_HOME` can override the root. Reported material loss forces the adaptive policy into shadow mode until explicitly reviewed and cleared.
 
 </details>
 

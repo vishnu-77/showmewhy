@@ -1,7 +1,7 @@
 ---
 name: showmewhy
 description: Verify a fresh answer or completed agent result, independently settle material claims where possible, surface only the smallest remaining verification gap, and detect when new evidence changes an earlier conclusion or relied-upon assumption.
-argument-hint: "[short|why|compare|monitor|impact|json|deep] [question or scope] | /stage [/stage ...] -- [task]"
+argument-hint: "[short|why|compare|monitor|impact|json|deep|status|update] [question or scope] | /stage [/stage ...] -- [task]"
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -28,6 +28,79 @@ Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 - `impact`: context/token/operational-impact accounting only
 - `json`: emit the applicable machine-readable Verification Surface or Context Delta object
 - `deep`: perform broader verification for complex or high-consequence work, while keeping the final human surface gap-first, 700-token soft budget
+- `status`: inspect the installed ShowMeWhy/Claude plugin state; do not run the verification pipeline
+- `update`: update ShowMeWhy through Claude Code's native plugin updater; do not run the verification pipeline
+
+Lifecycle modes (`status`, `update`) take precedence over ordinary task interpretation. They are not verification subjects and are not composition stages.
+
+### Lifecycle modes
+
+#### `status`
+
+When the first argument is `status`, report the current ShowMeWhy installation state rather than verifying the previous answer.
+
+Use observable local state. Prefer:
+
+```text
+claude plugin list --json
+claude plugin marketplace list --json
+```
+
+Read `${CLAUDE_PLUGIN_ROOT}/VERSION` when available to report the version bundled with the currently loaded plugin. If auto-update state can be inspected from Claude's marketplace state, report it; otherwise say `unknown` rather than assuming it is enabled.
+
+Render only:
+
+```text
+SHOWMEWHY · STATUS
+
+Version      <version or unknown>
+Plugin       healthy | missing | error | unknown
+Marketplace  showmewhy | missing | unknown
+Updates      automatic | manual | disabled | unknown
+State        global project-scoped
+
+DO NEXT
+<No action required. | one concrete repair/update action>
+```
+
+Do not expose home-directory paths, raw registry JSON, credentials, tokens, or unrelated plugins unless needed to explain a failure.
+
+#### `update`
+
+When the first argument is `update`, use Claude Code's native plugin updater for ShowMeWhy:
+
+```text
+claude plugin update showmewhy@showmewhy --scope user
+```
+
+Then verify the installed state with:
+
+```text
+claude plugin list --json
+```
+
+Do **not** uninstall/reinstall as the normal update path. Do not update unrelated plugins or marketplaces. If the updater reports that the installed version is already current, report that directly.
+
+If an update is installed on disk, explain that the current Claude session may still be using the version loaded at session start. The next action is:
+
+```text
+/reload-plugins
+```
+
+or start a new Claude Code session. Do not claim the current invocation switched to the new contract unless it was actually reloaded.
+
+Render only:
+
+```text
+SHOWMEWHY · UPDATE
+
+<Updated <before> -> <after>. | Already current at <version>. | Update failed.>
+
+DO NEXT
+</reload-plugins | Restart Claude Code. | one concrete recovery action>
+```
+
+Never fabricate before/after versions. If a version cannot be established, report only the updater's observable result.
 
 Existing mode syntax remains valid. Composition is opt-in only when the first argument after the real `/showmewhy` invocation is itself slash-prefixed.
 
@@ -85,6 +158,7 @@ Rules:
 8. Repeated adjacent aliases that normalise to the same stage may be collapsed.
 9. Existing Context Delta behaviour remains automatic inside verification; do not introduce `/delta`.
 10. Never expose private reasoning while handing state between stages.
+11. `status` and `update` are lifecycle modes, not stages; reject `/status` or `/update` inside a composition pipeline.
 
 When deterministic parsing is useful, use `scripts/compose.py`. Read `references/composition.md` for the full grammar and stage contract.
 
