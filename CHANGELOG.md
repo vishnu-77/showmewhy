@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.4.1 - 2026-09-16
+
+### Added
+
+- `/showmewhy status` for a compact, read-only installation health view covering the loaded version, plugin state, marketplace state, update mode and global project-scoped runtime model.
+- `/showmewhy update` using Claude Code's native `claude plugin update showmewhy@showmewhy --scope user` path, followed by installed-state verification.
+
+### Changed
+
+- Public documentation now standardises on the bare `/showmewhy` invocation. Claude Code keeps plugin namespacing internally, but current skill resolution also accepts the bare skill name when there is no command collision.
+- Installer completion output now advertises `/showmewhy`, `/showmewhy status`, and `/showmewhy update`.
+- README now documents direct marketplace add/install commands in addition to the one-line installers.
+- README runtime documentation now matches 4.4.0: ShowMeWhy state lives outside consumer repositories in OS-level project-scoped storage.
+
+### Lifecycle contract
+
+- `status` and `update` are lifecycle modes, not verification subjects and not composition stages.
+- `update` never uninstalls/reinstalls ShowMeWhy as its normal path and never updates unrelated plugins.
+- After an on-disk update, ShowMeWhy instructs the user to run `/reload-plugins` or start a new Claude Code session before assuming the newly installed contract is active.
+- Version changes are reported only when the before/after state is observable.
+
 ## 4.4.0 - 2026-09-16
 
 ### Added
