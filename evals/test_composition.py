@@ -1,5 +1,6 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import sys
 import unittest
 
 
@@ -12,6 +13,7 @@ SKILLS = ROOT / "skills"
 spec = spec_from_file_location("showmewhy_compose", COMPOSE)
 compose = module_from_spec(spec)
 assert spec and spec.loader
+sys.modules[spec.name] = compose
 spec.loader.exec_module(compose)
 
 
