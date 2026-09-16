@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "ShowMeWhy plugin marketplace",
-    "version": "4.1.1"
+    "version": "4.2.0"
   },
   "plugins": [
     {
       "name": "showmewhy",
-      "description": "Evidence-backed ShowMeWhy Skill with local context compression, provenance and fail-safe policy.",
+      "description": "Verify material agent claims, surface only unresolved verification gaps, and keep local evidence/provenance inspectable.",
       "source": "./",
       "strict": true
     }

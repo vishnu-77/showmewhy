@@ -1,0 +1,41 @@
+{
+  "manifest": {
+    "result": "Authentication audience migration works for the tested paths, but legacy-token compatibility is still unverified.",
+    "claims": [
+      {
+        "id": "C1",
+        "text": "Correct-audience tokens are accepted",
+        "obligation": "Exercise a valid service-b token through the new verifier",
+        "risk": "medium",
+        "required_witnesses": ["execution"],
+        "witnesses": [{"kind": "execution", "source": "auth.spec.ts::valid_audience -> 200", "outcome": "supports"}],
+        "next_action": "No action required."
+      },
+      {
+        "id": "C2",
+        "text": "Wrong-audience tokens are rejected",
+        "obligation": "Try a service-a token against the new verifier",
+        "risk": "high",
+        "required_witnesses": ["counterexample"],
+        "witnesses": [{"kind": "counterexample", "source": "auth.spec.ts::wrong_audience -> 401", "outcome": "supports"}],
+        "next_action": "No action required."
+      },
+      {
+        "id": "C3",
+        "text": "Pre-migration mobile tokens remain compatible",
+        "obligation": "Exercise a real pre-migration mobile token through the new verifier",
+        "risk": "high",
+        "blocking": true,
+        "required_witnesses": ["regression", "boundary"],
+        "witnesses": [],
+        "unresolved_reason": "No pre-migration mobile token was exercised.",
+        "next_action": "Run a pre-migration mobile token through the new verifier."
+      }
+    ]
+  },
+  "expected": {
+    "status": "needs_review",
+    "next_claim": "C3",
+    "unresolved": ["C3"]
+  }
+}

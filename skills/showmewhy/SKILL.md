@@ -1,198 +1,191 @@
 ---
 name: showmewhy
-description: Answer a fresh question or re-present an existing result as a concise conclusion, useful visual structure, and evidence-backed why graph. Use when the user explicitly invokes ShowMeWhy or asks to show the result and why without verbose narration.
-argument-hint: "[short|visual|why|compare|monitor|impact|json|deep] [question or scope]"
+description: Verify a fresh answer or completed agent result, independently settle material claims where possible, and surface only the smallest remaining verification gap. Use when the user explicitly invokes ShowMeWhy or asks what still needs to be checked before trusting a result.
+argument-hint: "[short|why|compare|monitor|impact|json|deep] [question or scope]"
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # ShowMeWhy
 
-Give the user the shortest justified answer that preserves what matters and why.
+ShowMeWhy answers one question: **what still needs human verification before this result should be trusted?**
 
-Do not expose, reconstruct, or claim to expose private chain-of-thought. The Why view is an evidence/provenance view built from observable facts, cited material, tool results, code, files, measurements, or clearly labelled inference.
+The default response is not a summary, report, graph, or chain-of-thought. Internally, decompose the result into material claims, define what would establish or refute each claim, gather observable witnesses, scrutinise them, and close what can be independently settled. Externally, show only the unresolved verification surface and one next action.
+
+Never expose, reconstruct, or claim to expose private chain-of-thought. Agent assertions, prior prose, confidence language, or a model saying "done" are not independent evidence.
 
 ## Invocation semantics
 
 Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 
-- no mode: default response, 300-token soft budget
-- `short`: maximum compression, 150-token soft budget
-- `visual`: prioritise the most useful visual representation, 350-token soft budget
-- `why`: prioritise evidence and provenance, 450-token soft budget
-- `compare`: prioritise a compact comparison, normally a Markdown table, 350-token soft budget
-- `monitor`: show the one-line evidence, recurrence guard, risk, and deterministic next-task budget
-- `impact`: explain the token/CO₂e receipt or calculate it from available counts; do not re-answer the whole topic unless needed
-- `json`: emit a machine-readable ShowMeWhy Receipt object conforming to `references/showmewhy-receipt.schema.json`
-- `deep`: preserve more detail for complex or high-consequence analysis, 700-token soft budget
+- no mode: verification surface, 220-token soft budget
+- `short`: one unresolved claim and one next action, 100-token soft budget
+- `why`: expanded claim / witness / gap ledger, 450-token soft budget
+- `compare`: compact comparison, normally a Markdown table, 300-token soft budget
+- `monitor`: session-level verification state only; never include this automatically in ordinary runs
+- `impact`: context/token/operational-impact accounting only
+- `json`: emit a machine-readable Verification Surface object conforming to `references/verification-surface.schema.json`
+- `deep`: perform broader verification for complex or high-consequence work, while keeping the final human surface gap-first, 700-token soft budget
 
-If the arguments contain a fresh question or task, answer that question or perform the necessary investigation first, then return the result as a ShowMeWhy Receipt. **Do not refuse merely because no prior answer exists.** Use available tools, files, web research, tests, or measurements when they are needed to answer correctly.
+If the arguments contain a fresh question or task, answer or investigate it first, then verify the material claims in that result. **Do not refuse merely because no prior answer exists.** Use tools, files, tests, commands, web research, measurements, or source inspection when needed.
 
-If no fresh question is supplied, apply ShowMeWhy to the most recent substantive answer, investigation, task result, or current topic. Reuse existing evidence rather than repeating expensive work unless the user requests fresh verification or the evidence may be stale.
+If no fresh question is supplied, verify the most recent substantive answer, task result, investigation, change, or decision. Reuse current evidence when it is still valid; independently re-check material claims when the original evidence is missing, stale, self-reported, or insufficient.
 
-## Receipt contract
+## Internal verification pipeline
 
-Read `references/receipt-contract.md` before formatting a substantive answer. The human output uses stable semantics: conclusion, signal, optional visual, evidence-backed WHY, caveats/confidence where useful, monitor, and impact. Empty or non-useful sections may be omitted.
+Do this internally; do not print the pipeline as a flow diagram.
 
-For representation choice, read `references/representation-routing.md`. Use the smallest representation that reduces reading.
+1. **CLAIM** — extract the smallest set of material claims whose truth would change whether the result should be trusted or acted on.
+2. **OBLIGATION** — for each claim, state what would establish or refute it. Broad, causal, universal, security-sensitive, or high-consequence claims need stronger obligations.
+3. **WITNESS** — gather observable evidence. Prefer executable or independently inspectable witnesses over model prose.
+4. **SCRUTINY** — check that the witness actually addresses the claim, is current, and is not merely evidence that an action happened.
+5. **CLOSURE** — mark the claim `VERIFIED`, `REFUTED`, or `OPEN`.
+6. **SURFACE** — show only material `OPEN` or `REFUTED` claims by default.
 
-### `json` mode
+Read `references/receipt-contract.md` for the human contract and `references/verification-surface.schema.json` for machine-readable output.
 
-When invoked with `json`, emit only a JSON object matching `references/showmewhy-receipt.schema.json`. Use `UNVERIFIED`/`MISSING` strings and `constrained` state when evidence or guard cannot be established. Do not fabricate source references, token counts, carbon estimates, confidence, or causality just to populate the schema.
+## Witness grammar
 
-## Response priority
+A witness is the smallest observable fact, execution, source, measurement, invariant, boundary check, counterexample, regression check, or comparison that can establish or falsify a material claim.
 
-Spend the token budget in this order:
+Useful witness kinds include:
 
-1. Conclusion
-2. Critical evidence or signal
-3. Material caveats
-4. Why/provenance view
-5. Useful visual structure
-6. Everything else
+- `execution`: a command, test, query, or operation with an inspectable outcome
+- `source`: a file, line, clause, citation, table cell, figure, record, or authoritative statement
+- `measurement`: a measured value tied to the claim
+- `invariant`: a property that must hold across many cases
+- `counterexample`: an attempt to falsify a broad claim
+- `boundary`: a check at an API, schema, identity, data, regulatory, or organisational boundary
+- `regression`: evidence that behaviour intended to remain unchanged still does
+- `comparison`: before/after or alternative outcomes under equivalent conditions
 
-Correctness beats compression. Never omit a material security, safety, legal, operational, or decision-changing caveat solely to satisfy the budget.
+For high-consequence or broad claims, prefer more than one witness type. A passing command proves that command passed; it does not automatically prove a broader semantic claim.
 
-## Conclusion first
+## Closure rules
 
-Start with the answer, recommendation, root cause, result, or status. Prefer one to three lines. Do not start by narrating what was inspected, searched, run, considered, or thought about.
+Use only these human-facing states:
 
-Avoid filler such as "I looked through...", "After analysing...", "Here is a detailed breakdown...", or "Based on everything above..." unless that information itself is material evidence.
+- `VERIFIED`: the required witnesses support the claim and no material contradictory witness remains
+- `REFUTED`: a current, relevant witness directly contradicts the claim
+- `OPEN`: evidence is missing, incomplete, conflicting, stale, outside available tools, or requires human judgement
 
-## Keep only signal
+When evidence conflicts, keep the claim `OPEN` unless one source clearly supersedes the other and that precedence is itself observable.
 
-Retain facts that materially support, contradict, constrain, quantify, or qualify the conclusion. Remove repeated tool output, procedural narration, duplicated observations, generic background the user already has, restatements of the question, and decorative commentary.
+A broad statement such as "all", "safe", "production-ready", "backwards compatible", "no regression", or "consistently" should normally trigger a counterexample, boundary, or regression obligation rather than being accepted from positive evidence alone.
 
-Prefer concrete numbers, paths, states, deltas, failures, constraints, and named evidence.
+`CAUSED_BY` remains a high bar internally. A missing validator, guard, or test may have allowed a defect to survive undetected; that does not prove it caused the defect.
 
-### Evidence coverage
+Every material quantified claim must be covered by observable evidence. If a result says "4 fixes", "7 failures", or "3 causes", verify the stated count or explicitly narrow the claim.
 
-Every material quantified claim must be covered by observable evidence. If the conclusion says "4 fixes", "7 failures", or "3 causes", the receipt must either show evidence for each item or explicitly state that only part of the count was independently verified. Do not compress several unsupported claims behind one verified example.
+## Default human output
 
-## Choose a visual only when it helps
+Do not print a provenance graph, arrow chain, MONITOR block, confidence paragraph, or CO₂e receipt by default.
 
-Read `references/visual-grammar.md` when a visual representation is useful.
+When material gaps remain:
 
-Default mapping:
+```text
+SHOWMEWHY
 
-- cause/evidence -> directed Why graph
-- comparison -> Markdown table
-- ordered sequence -> timeline
-- architecture -> component graph
-- hierarchy -> tree
-- distribution -> compact bars
-- dependencies -> dependency graph
-- simple result -> no visual
+<one-line result>
 
-Prefer ASCII or Markdown when sufficient. Use Mermaid only when relationships are too complex for a compact text diagram and the host renders it reliably. Never create a visual merely for decoration.
+NEEDS YOU
+1  <material unresolved claim>
+   <why it is still open or what refuted it>
 
-## Show why with provenance
+DO NEXT
+<single action that would close the highest-value gap>
+```
 
-For substantive conclusions, build the shortest evidence path that justifies the result.
+When many claims were checked, one compact tally may appear before `NEEDS YOU`, for example:
 
-Use these node classes conceptually:
+```text
+12 verified · 2 need you
+```
 
-- OBSERVATION: directly observed state, output, measurement, source statement, code, or event
-- EVIDENCE: observation relevant to the conclusion
-- INFERENCE: a conclusion derived from evidence but not directly observed
-- CONCLUSION: the answer being presented
-- CAVEAT: evidence or uncertainty limiting the conclusion
+Show at most **3** unresolved items in the default response. If more remain, add one line such as `+4 more · use why mode` rather than expanding the report.
 
-Use relationship semantics carefully:
+When all material claims are independently settled:
 
-- SUPPORTS
-- CONTRADICTS
-- DERIVED_FROM
-- VERIFIED_BY
-- CORRELATED_WITH
-- CAUSED_BY
+```text
+SHOWMEWHY
 
-`CAUSED_BY` is a high bar. Use it only when the evidence supports an actual causal relationship through a direct reproduction/intervention, a documented mechanism plus compatible observations, or another explicit causal basis. A missing validator, missing guard, or missing test usually **allowed a defect to pass undetected**; it did not necessarily cause the defect itself. Prefer `SUPPORTS`, `DERIVED_FROM`, or an explicit "allowed to pass undetected" statement when that is what the evidence shows.
+<one-line result>
 
-A Why graph must never be presented as the model's hidden reasoning trace.
+VERIFIED
+<compact count or strongest witness summary>
 
-## Risk / reward monitor
+DO NEXT
+No material verification gap found.
+```
 
-For substantive debugging, security, reliability, architecture, or operational conclusions, read `references/risk-reward-monitor.md` and add a compact monitor when it helps the user act on the result.
+When a material claim is refuted, do not preserve the original conclusion as if it were still valid. State the narrower or corrected result first, then surface the refuted claim under `NEEDS YOU`.
+
+## Choosing DO NEXT
+
+`DO NEXT` is not a generic helpful suggestion. It must be the single action most likely to close the highest-consequence unresolved verification obligation.
+
+Priority order:
+
+1. blocking unresolved claim
+2. security, safety, legal, financial, or destructive-risk gap
+3. refuted material claim
+4. missing boundary or compatibility witness
+5. missing regression or counterexample witness
+6. missing measurement/source support
+7. no action required
+
+Prefer a concrete verification action over "review this", "investigate further", or "check the logs".
+
+## `why` mode
+
+`why` expands the verification ledger without reverting to a graph or essay. Prefer a compact table or aligned list:
+
+```text
+CLAIM   STATE      WITNESS / GAP
+C1      VERIFIED   auth.spec.ts::valid_audience -> 200
+C2      OPEN       no pre-migration mobile token exercised
+C3      REFUTED    Schedule B still says 30 days
+```
+
+Include only observable witness references and missing obligations. Do not expose private reasoning.
+
+## Visuals
+
+Verification itself is not visualised as a DAG. Read `references/representation-routing.md` only when the **subject matter** genuinely benefits from a table, timeline, hierarchy, architecture diagram, distribution, or comparison. The verification surface remains `VERIFIED / NEEDS YOU / DO NEXT`.
+
+## `monitor` mode
+
+MONITOR is session-level telemetry, not default output. Use it only when explicitly invoked or when the user explicitly asks for end-of-session verification state.
 
 ```text
 MONITOR
-Evidence  <one independently verifiable line>
-Guard     <one concrete recurrence-detection check>
+Verified  <count>
+Open      <count>
+Refuted   <count>
 Risk      LOW | MEDIUM | HIGH
-Budget    <next-task token recommendation>
+Next      <highest-value unresolved verification action>
 ```
 
-The **Evidence** line must name an observable source: a test, file/line, command result, measurement, or citation. Generic statements such as `the logs prove it` are not evidence. If no source can be named, mark it `UNVERIFIED`.
-
-The **Guard** line must name the concrete check that would detect recurrence: a regression test, invariant, CI policy, or alert condition. A guard reduces recurrence risk; it does not prove the original defect's cause and does not make recurrence impossible.
-
-Budget state is deterministic:
-
-- direct/verifiable evidence + concrete guard -> `REWARDED`, next-task band **1,200–2,000 tokens**
-- unverified evidence or missing guard -> `CONSTRAINED`, next-task band **800–1,800 tokens**
-
-Within the active band, risk selects the recommendation:
-
-- REWARDED: LOW 2,000 · MEDIUM 1,600 · HIGH 1,200
-- CONSTRAINED: LOW 1,800 · MEDIUM 1,300 · HIGH 800
-
-Use `scripts/monitor.py` when tool execution is available.
-
-### `monitor` mode
-
-When invoked with `monitor`, return only the current monitor state, evidence line, guard, risk, and next-task budget unless the user asks for more.
-
-## Confidence
-
-Only include confidence when it adds value and can be justified from evidence quality.
-
-- HIGH: multiple direct/independent pieces of evidence or direct verification
-- MEDIUM: reasonable inference with incomplete verification
-- LOW: limited, indirect, conflicting, or assumption-heavy evidence
-
-Omit confidence rather than manufacture precision. Do not output numeric confidence percentages unless the source or a defined calculation provides them.
-
-## Token budget and receipt
-
-For a substantial transformation, finish with a one- or two-line ShowMeWhy receipt when it does not distract from the answer.
-
-```text
-────────────────────────────────
-ShowMeWhy · ~184 / 300 tokens · ↓ 72%
-Est. operational CO₂e equivalent · ~0.26 g*
-```
-
-Rules:
-
-1. Use exact host token counts if available.
-2. Otherwise estimate tokens and prefix them with `~`.
-3. If estimating from text, use approximately 4 UTF-8/ASCII characters per token only as a rough fallback.
-4. `reduction = max(source_tokens - output_tokens, 0)`.
-5. `reduction_pct = reduction / source_tokens * 100` when source tokens > 0.
-6. The source is the material being re-presented, not the whole conversation unless the whole conversation is actually being compressed.
-7. If the source is already-generated text, call the carbon value an **operational CO₂e equivalent**, not realised emissions avoided.
-8. Never claim prior compute has been undone.
-9. If tokens were genuinely prevented from generation/consumption by a runtime mechanism, `operational CO₂e avoided` is acceptable.
-
-For carbon calculations, read `references/impact-methodology.md`. Use `scripts/impact.py` when tool execution is available and token counts or text are available. If a credible calculation cannot be made, omit the CO₂e number rather than inventing one.
+Do not add token reward bands to ordinary ShowMeWhy responses.
 
 ## `impact` mode
 
-When invoked with `impact`:
+Only in `impact` mode (or when the user explicitly asks), report token/context reduction and operational-impact estimates. Distinguish presentation reduction from material genuinely prevented from entering later model context. Never claim already-spent compute was undone.
 
-- report source tokens, output tokens, reduced tokens, reduction percentage and budget usage when available
-- report the energy/carbon profile used
-- distinguish presentation-equivalent reduction from realised operational avoidance
-- show estimate quality
-- keep methodology concise
+For carbon methodology, read `references/impact-methodology.md` and use `scripts/impact.py` when available.
+
+## `json` mode
+
+Emit only a JSON object matching `references/verification-surface.schema.json`. Do not fabricate witnesses, closure states, sources, risk, counts, or next actions just to populate the schema.
+
+When tool execution is available and a structured verification manifest exists, `scripts/verification_surface.py` provides the deterministic reference closure and rendering behaviour.
 
 ## Stop condition
 
-Stop when the user has enough information to understand:
+Stop when the user can answer three questions:
 
-1. what the answer is,
-2. what materially supports it,
-3. what important caveat could change it.
+1. What is the result?
+2. What material part of it is still unverified or refuted?
+3. What single action would most reduce that remaining verification debt?
 
-Do not add a generic closing paragraph after the answer is complete.
+Do not add a generic recap or closing paragraph.
