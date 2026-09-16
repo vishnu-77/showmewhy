@@ -12,8 +12,7 @@
       "name": "showmewhy",
       "description": "Evidence-backed explanation, adaptive context compression and inspectable provenance.",
       "source": "./",
-      "strict": false,
-      "skills": ["./skills/showmewhy"]
+      "strict": true
     }
   ]
 }
