@@ -64,12 +64,18 @@ jobs:
           claude plugin marketplace add "$GITHUB_REPOSITORY"
           claude plugin install showmewhy@showmewhy
 
-      - name: Verify plugin survives a fresh CLI process
+      - name: Verify plugin loads in a fresh CLI process
         shell: bash
         run: |
           set -euo pipefail
           claude plugin list | tee /tmp/showmewhy-plugins.txt
-          grep -qi 'showmewhy' /tmp/showmewhy-plugins.txt
+          grep -q 'showmewhy@showmewhy' /tmp/showmewhy-plugins.txt
+
+          if grep -qiE 'failed to load|Status:.*✘|conflicting manifests' /tmp/showmewhy-plugins.txt; then
+            echo 'ShowMeWhy was installed but failed to load.' >&2
+            cat /tmp/showmewhy-plugins.txt >&2
+            exit 1
+          fi
 
           python - <<'PY'
           from pathlib import Path
