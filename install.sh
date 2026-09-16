@@ -34,15 +34,9 @@ fi
 export CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1
 
 log "Installing ShowMeWhy runtime..."
-if claude plugin marketplace list 2>/dev/null | grep -qi 'showmewhy'; then
-  claude plugin marketplace update showmewhy >/dev/null 2>&1 || true
-else
-  claude plugin marketplace add "$MARKETPLACE_SOURCE"
-fi
-
-if claude plugin list 2>/dev/null | grep -q 'showmewhy@showmewhy'; then
-  claude plugin uninstall showmewhy@showmewhy >/dev/null
-fi
+claude plugin uninstall showmewhy@showmewhy >/dev/null 2>&1 || true
+claude plugin marketplace remove showmewhy >/dev/null 2>&1 || true
+claude plugin marketplace add "$MARKETPLACE_SOURCE"
 claude plugin install showmewhy@showmewhy
 
 if [[ -n "$SOURCE_DIR" ]]; then
