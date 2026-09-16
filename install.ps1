@@ -36,18 +36,9 @@ try {
     $env:CLAUDE_CODE_PLUGIN_PREFER_HTTPS = '1'
 
     Write-Step 'Installing ShowMeWhy runtime...'
-    $MarketplaceList = (& claude plugin marketplace list 2>$null | Out-String)
-    if ($LASTEXITCODE -eq 0 -and $MarketplaceList -match '(?i)showmewhy') {
-        & claude plugin marketplace update showmewhy *> $null
-    }
-    else {
-        Invoke-Claude @('plugin', 'marketplace', 'add', $MarketplaceSource)
-    }
-
-    $PluginList = (& claude plugin list 2>$null | Out-String)
-    if ($PluginList -match 'showmewhy@showmewhy') {
-        Invoke-Claude @('plugin', 'uninstall', 'showmewhy@showmewhy')
-    }
+    & claude plugin uninstall showmewhy@showmewhy *> $null
+    & claude plugin marketplace remove showmewhy *> $null
+    Invoke-Claude @('plugin', 'marketplace', 'add', $MarketplaceSource)
     Invoke-Claude @('plugin', 'install', 'showmewhy@showmewhy')
 
     if ($SourceDir) {
