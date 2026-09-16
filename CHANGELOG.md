@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.1.0 - 2026-09-16
+
+### Changed
+
+- The user-facing Claude Code command is now installed as a personal Skill, so the normal invocation is `/showmewhy` rather than the plugin-namespaced `/showmewhy:showmewhy` form.
+- The Claude plugin is runtime-only and no longer contributes an auto-discovered ShowMeWhy Skill.
+- The canonical standalone Skill source now lives under `standalone/showmewhy/`.
+- Public documentation now presents ShowMeWhy as one product with a clean command surface and a separate local runtime implementation.
+
+### Added
+
+- Idempotent `install.sh` for macOS, Linux and WSL.
+- Idempotent `install.ps1` for Windows PowerShell.
+- Cross-platform installer acceptance that runs the installer twice on Ubuntu, macOS and Windows and verifies the personal Skill, runtime plugin and absence of a namespaced plugin Skill.
+- A redesigned, version-agnostic README organised around the ShowMeWhy Receipt, proof gates, architecture and trust invariants.
+
 ## 4.0.0 - 2026-09-15
 
 ### Added
@@ -15,11 +31,11 @@
 
 - Policy feedback stores metrics only; it does not persist prompts, summaries, findings, code or raw tool output.
 - Environment or explicit CLI settings can override adaptive mode/target settings.
-- Raw evidence remains the source of truth and V2 fail-open behaviour is preserved.
+- Raw evidence remains the source of truth and fail-open behaviour is preserved.
 
 ## 3.0.0 - 2026-09-15
 
-- Added typed provenance graphs grounded in V2 digests and raw evidence.
+- Added typed provenance graphs grounded in execution digests and raw evidence.
 - Added stable `evidence://` and `run://` addresses, causal-edge validation, run comparison and a local static viewer.
 
 ## 2.0.0 - 2026-09-15
@@ -39,6 +55,6 @@
 
 - Added MIT licence, contribution/branch policy, security guidance, PR template, and CI matrix.
 
-## 0.1.0 — V0
+## 0.1.0 — Initial prototype
 
 - Added `/showmewhy`, visual/evidence contract, risk/reward monitor, token/CO2e receipt, examples, and evals.
