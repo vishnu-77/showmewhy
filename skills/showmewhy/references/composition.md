@@ -51,6 +51,15 @@ Legacy forms remain valid and unchanged:
 /showmewhy deep is this migration safe?
 ```
 
+Lifecycle forms are also ordinary non-composed modes:
+
+```text
+/showmewhy status
+/showmewhy update
+```
+
+`status` and `update` are **not composition stages**. `/status` and `/update` inside a composition pipeline must fail closed as unsupported stage tokens rather than being executed.
+
 Composition is opt-in only when the first argument after `/showmewhy` is slash-prefixed.
 
 ## Stages
@@ -98,6 +107,7 @@ Each stage may enrich this state but must not silently discard evidence, caveats
 8. Repeated adjacent aliases that normalise to the same stage are collapsed.
 9. Composition must never expose or reconstruct private chain-of-thought.
 10. Existing Context Delta behaviour remains automatic inside verification; `/delta` is not introduced as a stage.
+11. Lifecycle modes `status` and `update` cannot be composed.
 
 ## Examples
 
