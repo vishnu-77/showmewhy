@@ -1,7 +1,6 @@
 {
   "name": "showmewhy",
-  "version": "4.1.0",
-  "description": "Local runtime for ShowMeWhy evidence retention, adaptive context compression, inspectable provenance and fail-safe policy in Claude Code.",
+  "description": "Evidence-backed ShowMeWhy Skill plus local runtime for context compression, provenance and fail-safe policy in Claude Code.",
   "author": {
     "name": "Vishnu Prashanth",
     "url": "https://github.com/vishnu-77"

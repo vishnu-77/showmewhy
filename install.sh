@@ -3,18 +3,9 @@ set -euo pipefail
 
 REPO_URL="${SHOWMEWHY_REPO_URL:-https://github.com/vishnu-77/showmewhy.git}"
 MARKETPLACE_SOURCE="${SHOWMEWHY_MARKETPLACE_SOURCE:-$REPO_URL}"
-SOURCE_DIR="${SHOWMEWHY_SOURCE_DIR:-}"
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
-SKILL_DEST="$CLAUDE_HOME/skills/showmewhy"
-ARCHIVE_URL="${SHOWMEWHY_ARCHIVE_URL:-https://github.com/vishnu-77/showmewhy/archive/refs/heads/main.tar.gz}"
-TMP_DIR=""
-
-cleanup() {
-  if [[ -n "$TMP_DIR" && -d "$TMP_DIR" ]]; then
-    rm -rf "$TMP_DIR"
-  fi
-}
-trap cleanup EXIT
+KNOWN_MARKETPLACES="$CLAUDE_HOME/plugins/known_marketplaces.json"
+LEGACY_SKILL="$CLAUDE_HOME/skills/showmewhy"
 
 log() {
   printf '%s\n' "$1"
@@ -33,48 +24,56 @@ fi
 
 export CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1
 
-log "Installing ShowMeWhy runtime..."
+log "Installing ShowMeWhy..."
 claude plugin uninstall showmewhy@showmewhy >/dev/null 2>&1 || true
 claude plugin marketplace remove showmewhy >/dev/null 2>&1 || true
 claude plugin marketplace add "$MARKETPLACE_SOURCE"
+
+if [[ ! -f "$KNOWN_MARKETPLACES" ]]; then
+  echo "ShowMeWhy: Claude marketplace state was not created at $KNOWN_MARKETPLACES." >&2
+  exit 1
+fi
+
+python3 - "$KNOWN_MARKETPLACES" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+entry = data.get("showmewhy")
+if not isinstance(entry, dict):
+    raise SystemExit("ShowMeWhy marketplace registration was not found")
+entry["autoUpdate"] = True
+path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+PY
+
+# Remove the 4.1.0-era copied personal Skill so the marketplace-managed Skill is
+# the only source of truth. This prevents the command contract from going stale.
+rm -rf "$LEGACY_SKILL"
+
 claude plugin install showmewhy@showmewhy
 
-if [[ -n "$SOURCE_DIR" ]]; then
-  SKILL_SOURCE="$SOURCE_DIR/standalone/showmewhy"
-else
-  TMP_DIR="$(mktemp -d)"
-  curl -fsSL "$ARCHIVE_URL" -o "$TMP_DIR/showmewhy.tar.gz"
-  tar -xzf "$TMP_DIR/showmewhy.tar.gz" -C "$TMP_DIR"
-  SKILL_SOURCE="$(find "$TMP_DIR" -type d -path '*/standalone/showmewhy' -print -quit)"
-fi
-
-if [[ -z "${SKILL_SOURCE:-}" || ! -f "$SKILL_SOURCE/SKILL.md" ]]; then
-  echo "ShowMeWhy: standalone Skill source was not found." >&2
-  exit 1
-fi
-
-log "Installing /showmewhy globally..."
-mkdir -p "$(dirname "$SKILL_DEST")"
-rm -rf "$SKILL_DEST"
-cp -R "$SKILL_SOURCE" "$SKILL_DEST"
-
-if [[ ! -f "$SKILL_DEST/SKILL.md" ]]; then
-  echo "ShowMeWhy: global Skill installation failed." >&2
-  exit 1
-fi
-if ! grep -q '^name: showmewhy$' "$SKILL_DEST/SKILL.md"; then
-  echo "ShowMeWhy: installed Skill failed its identity check." >&2
-  exit 1
-fi
 if ! claude plugin list 2>/dev/null | grep -q 'showmewhy@showmewhy'; then
-  echo "ShowMeWhy: runtime plugin is not registered after installation." >&2
+  echo "ShowMeWhy: plugin is not registered after installation." >&2
   exit 1
 fi
 
+python3 - "$KNOWN_MARKETPLACES" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+if data.get("showmewhy", {}).get("autoUpdate") is not True:
+    raise SystemExit("ShowMeWhy marketplace auto-update is not enabled")
+PY
+
 log ""
-log "ShowMeWhy installed."
-log "  command  /showmewhy"
-log "  skill    $SKILL_DEST"
-log "  runtime  showmewhy@showmewhy"
+log "ShowMeWhy installed with marketplace auto-update enabled."
+log "  plugin   showmewhy@showmewhy"
+log "  command  /showmewhy:showmewhy"
+log "  updates  automatic on Claude startup when upstream changes"
 log ""
-log "Start a new Claude Code session and type /showmewhy."
+log "Restart Claude Code once after this installation."

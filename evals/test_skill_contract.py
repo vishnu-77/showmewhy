@@ -3,7 +3,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "standalone" / "showmewhy" / "SKILL.md"
+SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
 README = ROOT / "README.md"
 VERSION = ROOT / "VERSION"
 
@@ -18,15 +18,24 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("name: showmewhy", self.skill)
         self.assertIn("user-invocable: true", self.skill)
         self.assertIn("disable-model-invocation: true", self.skill)
-        self.assertIn("/showmewhy", self.readme)
+
+    def test_fresh_questions_are_supported(self):
+        self.assertIn("Do not refuse merely because no prior answer exists", self.skill)
+        self.assertIn("perform the necessary investigation first", self.skill)
 
     def test_default_budget_is_300(self):
         self.assertIn("300-token soft budget", self.skill)
 
     def test_chain_of_thought_is_not_claimed(self):
-        self.assertIn("observable provenance", self.readme)
-        self.assertIn("private chain-of-thought", self.readme)
+        self.assertIn("private chain-of-thought", self.skill)
         self.assertIn("must never be presented as the model's hidden reasoning trace", self.skill)
+
+    def test_causal_safety_is_explicit(self):
+        self.assertIn("CAUSED_BY is a high bar", self.skill)
+        self.assertIn("allowed a defect to pass undetected", self.skill)
+
+    def test_quantified_claims_require_coverage(self):
+        self.assertIn("Every material quantified claim must be covered by observable evidence", self.skill)
 
     def test_monitor_contract_is_present(self):
         for field in ("Evidence", "Guard", "Risk", "Budget"):

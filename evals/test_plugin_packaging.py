@@ -5,8 +5,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
-STANDALONE_SKILL = ROOT / "standalone" / "showmewhy" / "SKILL.md"
-PLUGIN_SKILLS = ROOT / "skills"
+PLUGIN_SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
+STANDALONE = ROOT / "standalone"
 VERSION = ROOT / "VERSION"
 HOOKS = ROOT / "hooks" / "hooks.json"
 
@@ -17,9 +17,9 @@ class PluginPackagingTests(unittest.TestCase):
         self.assertEqual(data["name"], "showmewhy")
         self.assertEqual(data["license"], "MIT")
 
-    def test_plugin_is_runtime_only_and_short_skill_is_standalone(self):
-        self.assertFalse(PLUGIN_SKILLS.exists(), "plugin must not expose a namespaced ShowMeWhy skill")
-        self.assertTrue(STANDALONE_SKILL.exists(), "standalone /showmewhy skill must ship with the repo")
+    def test_skill_and_runtime_ship_atomically_in_plugin(self):
+        self.assertTrue(PLUGIN_SKILL.exists(), "ShowMeWhy Skill must ship inside the marketplace plugin")
+        self.assertFalse(STANDALONE.exists(), "there must be no second standalone Skill source of truth")
 
     def test_marketplace_uses_plugin_manifest_as_source_of_truth(self):
         data = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
@@ -30,11 +30,11 @@ class PluginPackagingTests(unittest.TestCase):
         for component_key in ("skills", "hooks", "commands", "agents", "mcpServers"):
             self.assertNotIn(component_key, plugin)
 
-    def test_versions_are_aligned(self):
-        expected = VERSION.read_text(encoding="utf-8").strip()
+    def test_plugin_uses_git_sha_for_update_detection(self):
         plugin = json.loads(PLUGIN.read_text(encoding="utf-8"))
+        self.assertNotIn("version", plugin, "plugin.json version would pin updates until a manual version bump")
         marketplace = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
-        self.assertEqual(plugin["version"], expected)
+        expected = VERSION.read_text(encoding="utf-8").strip()
         self.assertEqual(marketplace["metadata"]["version"], expected)
 
     def test_standard_hook_file_is_auto_discoverable(self):

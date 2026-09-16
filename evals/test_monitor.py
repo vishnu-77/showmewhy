@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-MODULE_PATH = Path(__file__).parents[1] / "standalone" / "showmewhy" / "scripts" / "monitor.py"
+MODULE_PATH = Path(__file__).parents[1] / "skills" / "showmewhy" / "scripts" / "monitor.py"
 spec = importlib.util.spec_from_file_location("showmewhy_monitor", MODULE_PATH)
 monitor = importlib.util.module_from_spec(spec)
 assert spec and spec.loader

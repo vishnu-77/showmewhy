@@ -1,12 +1,6 @@
 # ShowMeWhy installation architecture
 
-The supported user experience is one command inside Claude Code:
-
-```text
-/showmewhy
-```
-
-ShowMeWhy deliberately separates that command from its runtime plugin. Claude Code namespaces Skills distributed inside plugins, so the plugin is runtime-only and the user-invocable Skill is installed at personal scope.
+ShowMeWhy is distributed as one Claude Code marketplace plugin. The user-facing Skill, hooks and runtime are versioned and cached together so they update atomically.
 
 ## Recommended installation
 
@@ -22,42 +16,47 @@ curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh
 irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
 ```
 
-The installers set up both components:
+The installer:
 
 ```text
-~/.claude/skills/showmewhy/
-    └── SKILL.md                 → /showmewhy
-
-Claude plugin: showmewhy@showmewhy
-    ├── hooks/
-    └── runtime/                 → evidence retention, compression,
-                                   provenance and adaptive policy
+registers ShowMeWhy marketplace over HTTPS
+        ↓
+enables marketplace autoUpdate
+        ↓
+removes legacy copied personal Skill
+        ↓
+installs showmewhy@showmewhy
+        ↓
+Skill + hooks + runtime update together
 ```
 
-The plugin identifier may appear as `showmewhy@showmewhy` in `claude plugin list`. It is not the user command. The plugin intentionally contains no auto-discovered `skills/showmewhy/` directory, preventing Claude from contributing a namespaced `/showmewhy:showmewhy` Skill.
+Claude namespaces Skills distributed through plugins, so the explicit invocation is:
+
+```text
+/showmewhy:showmewhy
+```
+
+The namespaced command is accepted as a platform constraint in exchange for a single source of truth and reliable update semantics.
+
+## Update model
+
+ShowMeWhy intentionally omits `version` from `.claude-plugin/plugin.json`. For a Git-hosted marketplace Claude falls back to the source Git commit SHA as the plugin version key. This means each new upstream commit can be detected as a new plugin version without requiring an additional plugin-manifest version bump.
+
+Semantic product releases remain tracked through `VERSION`, `CHANGELOG.md`, Git tags and GitHub Releases. They are release metadata, not the Claude plugin-cache key.
+
+The installer also sets `autoUpdate: true` for the `showmewhy` marketplace in Claude's marketplace state. Claude Code can then refresh the marketplace and installed plugin at startup. If Claude updates a plugin while a session is already open, follow Claude's prompt to reload plugins or start a new session.
 
 ## Manual installation
-
-For development or debugging, the two layers can be installed manually.
-
-Runtime plugin:
 
 ```bash
 claude plugin marketplace add https://github.com/vishnu-77/showmewhy.git
 claude plugin install showmewhy@showmewhy
 ```
 
-Personal Skill:
-
-```bash
-mkdir -p ~/.claude/skills
-cp -R standalone/showmewhy ~/.claude/skills/showmewhy
-```
-
-Restart Claude Code after changing personal Skills.
+For manual installs, enable auto-update for the ShowMeWhy marketplace through Claude's `/plugin` marketplace UI. The provided installer does this automatically during installation.
 
 ## Validation
 
-CI validates the plugin with the real stable Claude Code binary, installs it from a marketplace, and rejects plugin load failures. Installer acceptance runs the complete installer twice on Ubuntu, macOS and Windows, verifies the personal Skill at the global Claude path, verifies the runtime plugin, and rejects any auto-discovered namespaced ShowMeWhy Skill.
+CI validates the plugin with the real stable Claude Code binary, installs it from a marketplace, verifies that the plugin cache contains `skills/showmewhy/SKILL.md`, and rejects plugin load failures. Installer acceptance runs twice on Ubuntu, macOS and Windows, verifies `autoUpdate: true`, verifies the marketplace-managed Skill and runtime, and verifies migration removes the legacy `~/.claude/skills/showmewhy` copy.
 
-The plugin manifest is `.claude-plugin/plugin.json`; the marketplace manifest is `.claude-plugin/marketplace.json`; the personal Skill source is `standalone/showmewhy/`.
+The plugin manifest is `.claude-plugin/plugin.json`; the marketplace manifest is `.claude-plugin/marketplace.json`; the Skill source is `skills/showmewhy/`.

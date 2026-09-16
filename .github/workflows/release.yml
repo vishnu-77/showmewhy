@@ -37,16 +37,16 @@ jobs:
           plugin = json.loads(Path('.claude-plugin/plugin.json').read_text(encoding='utf-8'))
           marketplace = json.loads(Path('.claude-plugin/marketplace.json').read_text(encoding='utf-8'))
 
-          if plugin.get('version') != version:
-              raise SystemExit('plugin.json version does not match VERSION')
+          if 'version' in plugin:
+              raise SystemExit('plugin.json must omit version so Claude can use the git commit SHA for update detection')
           if marketplace.get('metadata', {}).get('version') != version:
-              raise SystemExit('marketplace.json version does not match VERSION')
+              raise SystemExit('marketplace.json metadata version does not match VERSION')
 
           changelog = Path('CHANGELOG.md').read_text(encoding='utf-8')
           if not re.search(rf'^##\s+{re.escape(version)}(?:\s|$)', changelog, re.MULTILINE):
               raise SystemExit(f'CHANGELOG.md has no section for {version}')
 
-          print(f'release metadata aligned: {version}')
+          print(f'release metadata aligned: {version}; plugin update key = git commit SHA')
           PY
 
       - name: Create tag and GitHub Release when version is new

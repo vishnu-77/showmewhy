@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.1.1 - 2026-09-16
+
+### Fixed
+
+- ShowMeWhy now ships its Skill and runtime as one marketplace-managed plugin so updates are atomic instead of leaving a copied personal Skill stale.
+- The installer removes the legacy `~/.claude/skills/showmewhy` copy and enables marketplace `autoUpdate` for ShowMeWhy.
+- `plugin.json` no longer pins an explicit semantic version; Claude can use the Git commit SHA as the plugin update key, so each new upstream commit is distinguishable without a manual plugin-version bump.
+- A fresh ShowMeWhy invocation with a question now answers or investigates that question directly instead of requiring an earlier answer in the conversation.
+- Causal provenance guidance now treats `CAUSED_BY` as a high-evidence relation and distinguishes a missing guard/validator from the actual cause of a defect.
+- Quantified conclusions such as "4 fixes" must have evidence coverage for the stated count or be explicitly qualified.
+
+### Validation
+
+- Installer acceptance verifies `autoUpdate: true`, removes the legacy copied Skill, and confirms the marketplace-managed Skill is present with the runtime on Ubuntu, macOS and Windows.
+
 ## 4.1.0 - 2026-09-16
 
 ### Changed

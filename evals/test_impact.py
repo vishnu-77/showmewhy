@@ -2,7 +2,7 @@ import importlib.util
 import pathlib
 import unittest
 
-SCRIPT = pathlib.Path(__file__).parents[1] / "standalone" / "showmewhy" / "scripts" / "impact.py"
+SCRIPT = pathlib.Path(__file__).parents[1] / "skills" / "showmewhy" / "scripts" / "impact.py"
 spec = importlib.util.spec_from_file_location("impact", SCRIPT)
 impact = importlib.util.module_from_spec(spec)
 assert spec.loader is not None

@@ -68,7 +68,7 @@ jobs:
           fi
           claude plugin install showmewhy@showmewhy
 
-      - name: Verify runtime-only plugin loads in a fresh CLI process
+      - name: Verify atomic plugin loads with Skill and runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -88,19 +88,17 @@ jobs:
           registry = root / 'installed_plugins.json'
           if not registry.exists():
               raise SystemExit('installed_plugins.json was not created')
-
           text = registry.read_text(encoding='utf-8')
           if 'showmewhy@showmewhy' not in text:
               raise SystemExit('ShowMeWhy was not persisted in the installed plugin registry')
 
-          auto_skills = [
+          skills = [
               path for path in root.rglob('SKILL.md')
               if path.parent.name == 'showmewhy' and path.parent.parent.name == 'skills'
           ]
-          if auto_skills:
-              raise SystemExit(f'Runtime plugin unexpectedly exposes a namespaced skill: {auto_skills[0]}')
-
-          print('accepted: runtime plugin loaded without a namespaced ShowMeWhy skill')
+          if not skills:
+              raise SystemExit('Marketplace-managed ShowMeWhy Skill was not found in the plugin cache')
+          print(f'accepted: atomic plugin Skill + runtime at {skills[0]}')
           PY
 
   installer-posix:
@@ -122,22 +120,26 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           claude --version
 
+      - name: Seed legacy copied Skill
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.claude/skills/showmewhy"
+          printf '%s\n' 'legacy copy' > "$HOME/.claude/skills/showmewhy/SKILL.md"
+
       - name: Run ShowMeWhy installer twice
         shell: bash
         env:
-          SHOWMEWHY_SOURCE_DIR: ${{ github.workspace }}
           SHOWMEWHY_MARKETPLACE_SOURCE: ${{ github.workspace }}
         run: |
           set -euo pipefail
           bash install.sh
           bash install.sh
 
-      - name: Verify clean global command surface
+      - name: Verify atomic install and auto-update state
         shell: bash
         run: |
           set -euo pipefail
-          test -f "$HOME/.claude/skills/showmewhy/SKILL.md"
-          grep -q '^name: showmewhy$' "$HOME/.claude/skills/showmewhy/SKILL.md"
+          test ! -e "$HOME/.claude/skills/showmewhy"
 
           claude plugin list | tee /tmp/showmewhy-installer-plugins.txt
           grep -q 'showmewhy@showmewhy' /tmp/showmewhy-installer-plugins.txt
@@ -147,16 +149,21 @@ jobs:
           fi
 
           python3 - <<'PY'
+          import json
           from pathlib import Path
 
-          root = Path.home() / '.claude' / 'plugins'
-          auto_skills = [
-              path for path in root.rglob('SKILL.md')
+          home = Path.home() / '.claude'
+          state = json.loads((home / 'plugins' / 'known_marketplaces.json').read_text(encoding='utf-8'))
+          if state.get('showmewhy', {}).get('autoUpdate') is not True:
+              raise SystemExit('ShowMeWhy marketplace autoUpdate is not true')
+
+          skills = [
+              path for path in (home / 'plugins').rglob('SKILL.md')
               if path.parent.name == 'showmewhy' and path.parent.parent.name == 'skills'
           ]
-          if auto_skills:
-              raise SystemExit(f'namespaced plugin skill still present: {auto_skills[0]}')
-          print('accepted: /showmewhy personal Skill + runtime-only plugin')
+          if not skills:
+              raise SystemExit('Marketplace-managed ShowMeWhy Skill is missing')
+          print(f'accepted: auto-update=true; atomic Skill at {skills[0]}')
           PY
 
   installer-windows:
@@ -175,30 +182,39 @@ jobs:
           $env:PATH = "$localBin;$env:PATH"
           claude --version
 
+      - name: Seed legacy copied Skill
+        shell: pwsh
+        run: |
+          $legacy = Join-Path $HOME '.claude\skills\showmewhy'
+          New-Item -ItemType Directory -Path $legacy -Force | Out-Null
+          Set-Content -Path (Join-Path $legacy 'SKILL.md') -Value 'legacy copy'
+
       - name: Run ShowMeWhy installer twice
         shell: pwsh
         env:
-          SHOWMEWHY_SOURCE_DIR: ${{ github.workspace }}
           SHOWMEWHY_MARKETPLACE_SOURCE: ${{ github.workspace }}
         run: |
           .\install.ps1
           .\install.ps1
 
-      - name: Verify clean global command surface
+      - name: Verify atomic install and auto-update state
         shell: pwsh
         run: |
-          $skill = Join-Path $HOME '.claude\skills\showmewhy\SKILL.md'
-          if (-not (Test-Path $skill)) { throw 'Global /showmewhy Skill is missing.' }
-          if (-not (Select-String -Path $skill -Pattern '^name: showmewhy$' -Quiet)) { throw 'Global Skill identity check failed.' }
+          $legacy = Join-Path $HOME '.claude\skills\showmewhy'
+          if (Test-Path $legacy) { throw 'Legacy copied personal Skill was not removed.' }
 
           $plugins = (& claude plugin list | Out-String)
           Write-Host $plugins
-          if ($plugins -notmatch 'showmewhy@showmewhy') { throw 'Runtime plugin is missing.' }
-          if ($plugins -match '(?i)failed to load|Status:.*✘|conflicting manifests') { throw 'Runtime plugin failed to load.' }
+          if ($plugins -notmatch 'showmewhy@showmewhy') { throw 'ShowMeWhy plugin is missing.' }
+          if ($plugins -match '(?i)failed to load|Status:.*✘|conflicting manifests') { throw 'ShowMeWhy plugin failed to load.' }
+
+          $known = Join-Path $HOME '.claude\plugins\known_marketplaces.json'
+          $state = Get-Content $known -Raw | ConvertFrom-Json
+          if ($state.showmewhy.autoUpdate -ne $true) { throw 'ShowMeWhy marketplace autoUpdate is not true.' }
 
           $pluginRoot = Join-Path $HOME '.claude\plugins'
-          $autoSkills = Get-ChildItem -Path $pluginRoot -Filter SKILL.md -File -Recurse -ErrorAction SilentlyContinue |
+          $skills = Get-ChildItem -Path $pluginRoot -Filter SKILL.md -File -Recurse -ErrorAction SilentlyContinue |
             Where-Object { $_.Directory.Name -eq 'showmewhy' -and $_.Directory.Parent.Name -eq 'skills' }
-          if ($autoSkills) { throw "Namespaced plugin Skill still present: $($autoSkills[0].FullName)" }
+          if (-not $skills) { throw 'Marketplace-managed ShowMeWhy Skill is missing.' }
 
-          Write-Host 'accepted: /showmewhy personal Skill + runtime-only plugin'
+          Write-Host "accepted: auto-update=true; atomic Skill at $($skills[0].FullName)"
