@@ -102,3 +102,103 @@ jobs:
 
           print('accepted: runtime plugin loaded without a namespaced ShowMeWhy skill')
           PY
+
+  installer-posix:
+    name: Installer acceptance (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Claude Code
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://claude.ai/install.sh | bash -s stable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          claude --version
+
+      - name: Run ShowMeWhy installer twice
+        shell: bash
+        env:
+          SHOWMEWHY_SOURCE_DIR: ${{ github.workspace }}
+          SHOWMEWHY_MARKETPLACE_SOURCE: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          bash install.sh
+          bash install.sh
+
+      - name: Verify clean global command surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$HOME/.claude/skills/showmewhy/SKILL.md"
+          grep -q '^name: showmewhy$' "$HOME/.claude/skills/showmewhy/SKILL.md"
+
+          claude plugin list | tee /tmp/showmewhy-installer-plugins.txt
+          grep -q 'showmewhy@showmewhy' /tmp/showmewhy-installer-plugins.txt
+          if grep -qiE 'failed to load|Status:.*✘|conflicting manifests' /tmp/showmewhy-installer-plugins.txt; then
+            cat /tmp/showmewhy-installer-plugins.txt >&2
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path.home() / '.claude' / 'plugins'
+          auto_skills = [
+              path for path in root.rglob('SKILL.md')
+              if path.parent.name == 'showmewhy' and path.parent.parent.name == 'skills'
+          ]
+          if auto_skills:
+              raise SystemExit(f'namespaced plugin skill still present: {auto_skills[0]}')
+          print('accepted: /showmewhy personal Skill + runtime-only plugin')
+          PY
+
+  installer-windows:
+    name: Installer acceptance (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Claude Code
+        shell: pwsh
+        run: |
+          & ([scriptblock]::Create((Invoke-RestMethod 'https://claude.ai/install.ps1'))) stable
+          $localBin = Join-Path $HOME '.local\bin'
+          $localBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "$localBin;$env:PATH"
+          claude --version
+
+      - name: Run ShowMeWhy installer twice
+        shell: pwsh
+        env:
+          SHOWMEWHY_SOURCE_DIR: ${{ github.workspace }}
+          SHOWMEWHY_MARKETPLACE_SOURCE: ${{ github.workspace }}
+        run: |
+          .\install.ps1
+          .\install.ps1
+
+      - name: Verify clean global command surface
+        shell: pwsh
+        run: |
+          $skill = Join-Path $HOME '.claude\skills\showmewhy\SKILL.md'
+          if (-not (Test-Path $skill)) { throw 'Global /showmewhy Skill is missing.' }
+          if (-not (Select-String -Path $skill -Pattern '^name: showmewhy$' -Quiet)) { throw 'Global Skill identity check failed.' }
+
+          $plugins = (& claude plugin list | Out-String)
+          Write-Host $plugins
+          if ($plugins -notmatch 'showmewhy@showmewhy') { throw 'Runtime plugin is missing.' }
+          if ($plugins -match '(?i)failed to load|Status:.*✘|conflicting manifests') { throw 'Runtime plugin failed to load.' }
+
+          $pluginRoot = Join-Path $HOME '.claude\plugins'
+          $autoSkills = Get-ChildItem -Path $pluginRoot -Filter SKILL.md -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.Directory.Name -eq 'showmewhy' -and $_.Directory.Parent.Name -eq 'skills' }
+          if ($autoSkills) { throw "Namespaced plugin Skill still present: $($autoSkills[0].FullName)" }
+
+          Write-Host 'accepted: /showmewhy personal Skill + runtime-only plugin'
