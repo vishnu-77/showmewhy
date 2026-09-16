@@ -1,38 +1,17 @@
-# ShowMeWhy
-
 <div align="center">
 
-**Don't tell me everything. Show me why.**
+# ShowMeWhy
 
-Evidence-backed answers for Claude Code.
+**Review only what the AI couldn't prove.**
 
-`CONCLUSION → EVIDENCE → PROVENANCE → COST`
+Turn agent output into the smallest remaining verification surface.
 
-```text
-/showmewhy:showmewhy
-```
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/vishnu-77/showmewhy?style=flat" alt="License"></a>
+  <a href="https://github.com/vishnu-77/showmewhy/actions/workflows/test.yml"><img src="https://github.com/vishnu-77/showmewhy/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+</p>
 
 </div>
-
----
-```text
-WHAT
-A compact way to turn agent work into an inspectable decision receipt.
-
-WHY
-verbose output → signal → evidence path → conclusion
-
-PROOF
-raw evidence is retained before compression, provenance is inspectable,
-and CI installs the real Claude plugin on Linux, macOS and Windows.
-
-COST
-less material carried forward when the runtime can safely compress it.
-```
-
-ShowMeWhy is built for the moment when Claude has done real work and you do not want another wall of narration. It can also take a fresh question directly: when a new question is supplied, ShowMeWhy performs the necessary investigation first and then returns the answer as an evidence-backed receipt.
-
-[Install](#install) · [See the difference](#see-the-difference) · [The receipt](#the-showmewhy-receipt) · [Proof](#dont-trust-the-readme-show-me-the-proof) · [Deep dive](#deep-dive)
 
 ## Install
 
@@ -48,270 +27,259 @@ curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh
 irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
 ```
 
-Then open a new Claude Code session:
-
-```bash
-claude
-```
-
-and use:
-
-```text
-/showmewhy:showmewhy why are my authentication tests failing?
-```
-
-ShowMeWhy is installed as **one marketplace-managed plugin**. The Skill, hooks and runtime travel together in the same cached plugin version, so prompt behaviour cannot drift away from context compression, provenance or safety policy. The installer also enables auto-update for the ShowMeWhy marketplace and removes the older copied personal Skill if it exists.
-
-ShowMeWhy intentionally omits an explicit plugin version from `plugin.json`. Claude therefore uses the Git commit SHA as the plugin update key for this Git-hosted marketplace. A new upstream commit is distinguishable as a new plugin version without requiring a separate plugin-version bump. Semantic releases remain in `VERSION`, `CHANGELOG.md` and GitHub Releases.
-
-The installers are plain text in this repository. If you prefer to inspect before executing, read [`install.sh`](install.sh) or [`install.ps1`](install.ps1), then run the local file.
-
-## See the difference
-
-Without ShowMeWhy, the useful answer can be buried inside tool output, repeated observations and narrative explanation:
-
-```text
-pytest output
-├── hundreds of passing lines
-├── 5 failures
-├── stack traces
-├── repeated explanation
-└── root cause somewhere near the end
-```
-
-With ShowMeWhy:
-
-```text
-AUTH REGRESSION
-
-5 authentication tests failed.
-
-WHY
-middleware changed
-      ↓
-validation skipped
-      ↓
-expired session accepted
-      ↓
-authentication tests failed
-
-MONITOR
-Evidence  tests/auth.spec.ts::rejects_expired_session — FAIL before, PASS after
-Guard     CI must keep rejects_expired_session green
-Risk      MEDIUM
-Budget    1,600 / 2,000 tokens · REWARDED
-
-────────────────────────────────
-ShowMeWhy · ~184 / 300 tokens · ↓72%
-```
-
-**Less narration. More justification.**
-
-## The ShowMeWhy Receipt
-
-The receipt is the product primitive. It is small enough to scan quickly but structured enough to inspect when the conclusion matters.
-
-```text
-┌──────────────────────────────────────────────┐
-│ SHOWMEWHY RECEIPT                            │
-├──────────────────────────────────────────────┤
-│ WHAT                                         │
-│ Authentication regression                    │
-│                                              │
-│ WHY                                          │
-│ middleware → validation → failing test       │
-│                                              │
-│ PROOF                                        │
-│ auth.spec.ts::rejects_expired_session        │
-│                                              │
-│ HOW SURE                                     │
-│ HIGH · directly reproduced                   │
-│                                              │
-│ COST                                         │
-│ ~184 / 300 tokens · ↓72%                     │
-└──────────────────────────────────────────────┘
-```
-
-`WHY` is observable provenance, **not private chain-of-thought**. ShowMeWhy distinguishes observations, evidence, inference, conclusions and caveats. It does not turn correlation into causation merely because a causal story sounds plausible.
-
-```text
-CORRELATED_WITH  ≠  CAUSED_BY
-```
-
-A `CAUSED_BY` relationship has a deliberately high bar. A missing validator or regression guard may have allowed a defect to survive undetected, but that does not automatically mean the missing validator caused the defect.
-
-## Don't trust the README. Show me the proof.
-
-ShowMeWhy treats its own packaging the same way it treats an answer: claims should have inspectable evidence. CI does more than parse manifests.
-
-| Claim | Release gate |
-|---|---|
-| The core contracts still work | Python test matrix on 3.11, 3.12 and 3.13 |
-| The complete package is a valid Claude plugin | `claude plugin validate` on a clean runner |
-| The plugin actually loads | real marketplace add + install + fresh-process `plugin list` |
-| Skill and runtime update together | the installed plugin cache must contain `skills/showmewhy/SKILL.md` alongside the runtime |
-| Auto-update is configured | installer acceptance verifies `showmewhy.autoUpdate == true` in Claude marketplace state |
-| Migration removes stale prompt copies | a seeded legacy `~/.claude/skills/showmewhy` copy must be removed by the installer |
-| Installation is repeatable | the installer is run twice on the same clean runner |
-| The install works across supported desktop shells | acceptance runs on Ubuntu, macOS and Windows |
-
-A release is created only after the main test workflow succeeds. Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases), not in this README.
-
-## How it works
-
-```text
-                         CLAUDE CODE
-                             │
-                 /showmewhy:showmewhy
-                             │
-                   marketplace plugin
-                   ├── ShowMeWhy Skill
-                   ├── hooks
-                   └── runtime
-                             │
-                             ▼
-                     SHOWMEWHY RECEIPT
-                 WHAT · WHY · PROOF · COST
-
-For eligible tool output:
-
-verbose Bash result
-        │
-        ├──────────────→ retained raw evidence
-        │                     evidence://...
-        ▼
-deterministic digest
-        │
-        ▼
-agent context
-        │
-        ▼
-typed provenance
-        │
-        ▼
-adaptive safety policy
-```
-
-The design principle is simple:
-
-> **The model can read less than the human can inspect.**
-
-Raw output is retained locally before an eligible Bash result is compressed. Unsupported, short or uncertain results pass through unchanged, stderr is preserved, and the runtime fails open rather than hiding information when safe compression is not justified.
-
-## Trust invariants
-
-```text
-SHOWMEWHY WILL                              SHOWMEWHY WILL NOT
-
-✓ retain raw evidence first                × expose private chain-of-thought
-✓ fail open when parsing is uncertain      × invent confidence percentages
-✓ preserve material stderr                 × turn correlation into causation
-✓ expose inspectable provenance            × claim spent compute was "saved"
-✓ back off when evidence is reopened       × learn task solutions into policy
-✓ enter shadow mode after reported loss    × hide material risk to hit a budget
-✓ evidence-cover quantified claims         × hide unsupported counts behind one example
-```
-
-Confidence is qualitative and included only when the evidence supports it. Risk is independent of confidence: a conclusion can be strongly evidenced and still describe a high-risk condition.
-
-## Command views
-
-Use the same namespaced command with an optional mode:
+Then use:
 
 ```text
 /showmewhy:showmewhy
-    default decision receipt
-
-/showmewhy:showmewhy why
-    shortest useful evidence path
-
-/showmewhy:showmewhy short
-    smallest justified answer
-
-/showmewhy:showmewhy visual
-    table, timeline, tree or graph when structure helps
-
-/showmewhy:showmewhy compare
-    compact structured comparison
-
-/showmewhy:showmewhy monitor
-    evidence · guard · risk · next-task budget
-
-/showmewhy:showmewhy impact
-    context reduction and operational-impact accounting
-
-/showmewhy:showmewhy json
-    machine-readable receipt
-
-/showmewhy:showmewhy deep
-    larger evidence budget for complex work
 ```
 
-These are soft presentation budgets. Correctness, security-relevant findings and material caveats take priority over being short.
+or give it a fresh question:
 
-## Deep dive
+```text
+/showmewhy:showmewhy is this migration actually safe to ship?
+```
 
-<details>
-<summary><strong>Context compression</strong></summary>
+The installer sets up one marketplace-managed plugin containing the Skill, hooks and runtime, enables ShowMeWhy marketplace auto-update, and removes the older copied personal Skill if one exists.
 
-The runtime watches eligible verbose Bash `PostToolUse` results. It stores raw evidence first, then uses deterministic parsers for recognised output shapes and creates a compact execution digest for subsequent context. A short, unsupported or low-confidence result is not replaced merely to produce a smaller number.
+## What it does
 
-Runtime state is local under `.showmewhy/`, which is ignored by Git. Shadow mode can be forced with `SHOWMEWHY_MODE=shadow`, and a manual context target can be provided with `SHOWMEWHY_CONTEXT_BUDGET_TOKENS`.
+AI makes work cheap to produce and expensive to trust. ShowMeWhy tries to remove that verification debt before it reaches you.
 
-</details>
+It does **not** review everything and hand you a longer report. Internally it breaks a result into material claims, defines what would establish or refute them, gathers observable witnesses, closes what it can, and surfaces only what remains unresolved.
 
-<details>
-<summary><strong>Inspectable provenance</strong></summary>
+```text
+Agent: Done. Authentication migration complete. All tests pass.
 
-Retained runs can be represented as typed provenance graphs. Evidence and execution artefacts receive stable local addresses such as `evidence://sha256/<digest>#tool_response` and `run://<run-id>#findings/<n>`. Relationships include `SUPPORTS`, `CONTRADICTS`, `DERIVED_FROM`, `OBSERVED_IN`, `VERIFIED_BY`, `CORRELATED_WITH` and `CAUSED_BY`.
+/showmewhy:showmewhy
 
-A `CAUSED_BY` edge requires an explicit causal basis. The provenance graph is an inspectable evidence structure, not a reconstructed hidden reasoning trace.
+SHOWMEWHY
 
-</details>
+Authentication migration works for the tested paths,
+but legacy-token compatibility is still unverified.
 
-<details>
-<summary><strong>Adaptive safety policy</strong></summary>
+2 verified · 1 need you
 
-Compression adapts from operational feedback rather than task content. Repeated evidence reopening or incomplete parsing makes the policy more conservative. Reported material information loss activates a sticky safety lock and forces shadow mode until it is explicitly reviewed and cleared. Policy feedback stores operational metrics; it does not learn source code, raw tool output, generated answers or task solutions.
+NEEDS YOU
+1  Pre-migration mobile tokens remain compatible · HIGH
+   No pre-migration mobile token was exercised.
 
-</details>
+DO NEXT
+Run a pre-migration mobile token through the new verifier.
+```
 
-<details>
-<summary><strong>Token and operational-impact accounting</strong></summary>
+**Most tools show you more. ShowMeWhy tries to remove what you no longer need to review.**
 
-ShowMeWhy separates presentation reduction from context actually avoided. Making already-generated prose shorter does not undo inference cost. Operational CO₂e avoidance is only appropriate when the runtime genuinely prevents material from entering later model context and the estimate has a defensible baseline. Assumptions remain visible rather than being collapsed into a fixed token-to-tree claim.
+## Before / after
 
-See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md).
+<table>
+<tr>
+<td width="50%" valign="top">
 
-</details>
+### Before
 
-<details>
-<summary><strong>Local inspection</strong></summary>
+> The agent changed 47 files and says the migration is complete. Tests are green, the new token path works, and the middleware has been updated. You still need to inspect the diff, work out which claims matter, decide whether the tests actually prove them, look for compatibility issues, and figure out what to check next.
+
+</td>
+<td width="50%" valign="top">
+
+### After
+
+```text
+SHOWMEWHY
+
+Migration works for tested paths.
+
+18 verified · 2 need you
+
+NEEDS YOU
+1  Rollback behaviour · HIGH
+   Rollback was never executed.
+
+2  Legacy-client compatibility
+   No old-client fixture was exercised.
+
+DO NEXT
+Run migrate → write → rollback → read.
+```
+
+</td>
+</tr>
+</table>
+
+## The output
+
+Default ShowMeWhy output has three jobs:
+
+```text
+RESULT      the narrowest defensible conclusion
+NEEDS YOU   only material claims still open or refuted
+DO NEXT     one action that closes the highest-value gap
+```
+
+No proof DAG. No mandatory MONITOR block. No carbon footer. No catalogue of every passing check.
+
+If everything material can be independently settled:
+
+```text
+SHOWMEWHY
+
+The measured claim is supported.
+
+VERIFIED
+6 material claims independently settled.
+
+DO NEXT
+No material verification gap found.
+```
+
+Use `why` mode when you actually want the expanded claim/witness ledger.
+
+## The rules
+
+1. **Agent assertions are not evidence.** “Done”, “tests pass”, and confidence language never close a claim by themselves.
+2. **Verify claims, not line counts.** A 10-line security change can matter more than 10,000 generated lines.
+3. **Every material claim gets an obligation.** What would establish it? What would refute it?
+4. **Prefer witnesses over prose.** Executions, sources, measurements, invariants, boundaries, regressions and counterexamples beat another explanation.
+5. **Broad claims get attacked.** “All”, “safe”, “backwards compatible”, “no regression”, and “production-ready” should trigger counterexample or boundary checks.
+6. **Only three states exist.** `VERIFIED`, `REFUTED`, `OPEN`.
+7. **Default output shows the remaining work.** At most three unresolved items, then one concrete `DO NEXT`.
+
+The full contract lives in [`skills/showmewhy/SKILL.md`](skills/showmewhy/SKILL.md).
+
+## Works beyond code
+
+The verification primitive is domain-general. The witnesses change; the contract does not.
+
+| Domain | Material claim | Example witness | Typical unresolved gap |
+|---|---|---|---|
+| Code | “migration is backwards compatible” | old-client regression fixture | legacy client never exercised |
+| Policy | “all production identities require MFA” | clause + exception search | legacy bypass exists |
+| Research | “method reduces energy use” | direct measurement | only token proxy measured |
+| Contract | “all notice periods are 14 days” | clause search across schedules | conflicting 30-day clause |
+| Data | “migration preserves semantics” | invariant + downstream fixture | null behaviour untested |
+| Architecture | “single point of failure removed” | dependency/failure probe | shared Redis still exists |
+
+Deterministic reference cases for these domains live in [`evals/reference_cases/`](evals/reference_cases/).
+
+## Why this is different
+
+Most review systems **add findings**. ShowMeWhy's target is the opposite: **shrink the human verification surface**.
+
+A semantic diff can reorganise a large change. A receipt can prove that an action happened. ShowMeWhy asks a different question:
+
+> **What material part of this result is still not independently established?**
+
+That means a 500-line or 15,000-line change should not become a 100-line summary. If 497 of 500 material claims can be independently settled, the default surface should contain only the remaining three.
+
+## How it works
+
+Internally, ShowMeWhy uses a small verification grammar:
+
+```text
+CLAIM       material statement that affects trust or action
+OBLIGATION  what would establish or refute it
+WITNESS     observable execution, source, measurement or counterexample
+SCRUTINY    does the witness really address the claim?
+CLOSURE     VERIFIED · REFUTED · OPEN
+SURFACE     only unresolved material claims reach the default output
+```
+
+The human does not need to see that machinery unless they ask for `why` or `json` mode.
+
+## Views
+
+```text
+/showmewhy:showmewhy             unresolved verification surface
+/showmewhy:showmewhy short       one gap + one next action
+/showmewhy:showmewhy why         claim · state · witness/gap ledger
+/showmewhy:showmewhy compare     compact comparison
+/showmewhy:showmewhy monitor     session-level verification state
+/showmewhy:showmewhy impact      context/token/operational impact
+/showmewhy:showmewhy json        machine-readable verification surface
+/showmewhy:showmewhy deep        broader verification, same compact final surface
+```
+
+## Battle-tested reference behaviour
+
+The deterministic reference engine is intentionally small enough to inspect:
 
 ```bash
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli provenance <run-id>
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli compare <before-run> <after-run>
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli view <run-id> --out provenance.html
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli feedback <run-id> --reopened no --material-loss no
-PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy
+python skills/showmewhy/scripts/verification_surface.py \
+  evals/reference_cases/code-auth.json
 ```
 
-The machine-readable receipt schema lives at [`skills/showmewhy/references/showmewhy-receipt.schema.json`](skills/showmewhy/references/showmewhy-receipt.schema.json).
+Current fixtures cover code, policy, research, contracts, data and architecture. The scale test also creates **500 material claims**, verifies 497, leaves 3 open, and asserts that the default human output does not replay the 497 settled claims.
 
-</details>
-
-## Development
-
-Run the deterministic contract, runtime, provenance, policy and packaging tests with:
+Run the complete suite:
 
 ```bash
 python -m unittest discover -s evals -p 'test_*.py'
 ```
 
-The repository follows `feature/*` → `develop` → `main`, with release publication gated by the main CI result. Security reports should follow [`SECURITY.md`](SECURITY.md); contribution guidance is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+## Under the hood
 
-## Project
+<details>
+<summary><strong>Witness closure</strong></summary>
+
+The deterministic reference implementation lives at [`skills/showmewhy/scripts/verification_surface.py`](skills/showmewhy/scripts/verification_surface.py). A material claim is `VERIFIED` only when its required witness kinds are present and no current witness refutes it. A refuting witness wins over supporting evidence. Missing, inconclusive, conflicting, stale or human-only evidence leaves the claim `OPEN`.
+
+The V2 machine contract is [`skills/showmewhy/references/verification-surface.schema.json`](skills/showmewhy/references/verification-surface.schema.json).
+
+</details>
+
+<details>
+<summary><strong>Context compression and retained evidence</strong></summary>
+
+Eligible verbose Bash `PostToolUse` results are stored as raw local evidence before deterministic parsing. Recognised result shapes can be replaced in model context with a smaller execution digest. Short, unsupported or low-confidence results are left untouched.
+
+Runtime state is local under `.showmewhy/`. Reported material loss forces the adaptive policy into shadow mode until explicitly reviewed and cleared.
+
+</details>
+
+<details>
+<summary><strong>Provenance</strong></summary>
+
+Retained evidence and runs still receive stable local addresses such as `evidence://...` and `run://...`. Typed provenance remains available for machines and deep inspection, but it is no longer the default human UI.
+
+Private chain-of-thought is never exposed or reconstructed.
+
+</details>
+
+<details>
+<summary><strong>Impact accounting</strong></summary>
+
+ShowMeWhy separates presentation reduction from context actually avoided. Shortening already-generated text does not undo inference cost. Operational CO₂e estimates are available only through explicit `impact` use when the baseline is defensible.
+
+See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md).
+
+</details>
+
+## Proof
+
+ShowMeWhy's own release path uses real acceptance gates:
+
+| Claim | CI gate |
+|---|---|
+| Core contracts still work | Python 3.11, 3.12 and 3.13 |
+| Claude accepts the plugin | real `claude plugin validate` |
+| Marketplace install actually loads | add → install → fresh-process `plugin list` |
+| Skill and runtime ship together | installed cache contains both |
+| Auto-update is configured | marketplace state has `autoUpdate: true` |
+| Installation is repeatable | installer runs twice on clean runners |
+| Desktop install paths work | Ubuntu, macOS and Windows acceptance |
+
+Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases), not in this README.
+
+## License
+
+[MIT](LICENSE).
+
+---
+
+<div align="center">
 
 **Local-first · fail-open · inspectable**
 
-[Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Releases](https://github.com/vishnu-77/showmewhy/releases) · [MIT Licence](LICENSE)
+Star the repo if ShowMeWhy removed one thing you no longer had to review.
+
+</div>

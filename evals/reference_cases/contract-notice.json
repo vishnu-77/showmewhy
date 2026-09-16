@@ -1,0 +1,35 @@
+{
+  "manifest": {
+    "result": "The termination-notice change is internally inconsistent across the agreement.",
+    "claims": [
+      {
+        "id": "L1",
+        "text": "The master termination clause requires 14 days notice",
+        "obligation": "Locate the operative notice period in the master clause",
+        "risk": "medium",
+        "required_witnesses": ["source"],
+        "witnesses": [{"kind": "source", "source": "agreement.md:4.1 says 14 days", "outcome": "supports"}],
+        "next_action": "No action required."
+      },
+      {
+        "id": "L2",
+        "text": "All termination-notice references are consistent with 14 days",
+        "obligation": "Search schedules and incorporated terms for conflicting notice periods",
+        "risk": "high",
+        "blocking": true,
+        "required_witnesses": ["source", "counterexample"],
+        "witnesses": [
+          {"kind": "source", "source": "agreement.md:4.1 says 14 days", "outcome": "supports"},
+          {"kind": "counterexample", "source": "schedule-b.md:12 still says 30 days", "outcome": "refutes"}
+        ],
+        "unresolved_reason": "Schedule B still specifies 30 days and contradicts the master clause.",
+        "next_action": "Resolve the 14-day / 30-day conflict in Schedule B."
+      }
+    ]
+  },
+  "expected": {
+    "status": "refuted",
+    "next_claim": "L2",
+    "unresolved": ["L2"]
+  }
+}

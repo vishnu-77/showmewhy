@@ -1,0 +1,35 @@
+{
+  "manifest": {
+    "result": "The design still has a shared Redis single point of failure despite control-plane replication.",
+    "claims": [
+      {
+        "id": "A1",
+        "text": "The control plane has redundant service replicas",
+        "obligation": "Verify independent replicas exist",
+        "risk": "medium",
+        "required_witnesses": ["source"],
+        "witnesses": [{"kind": "source", "source": "architecture.md control-plane replicas=2", "outcome": "supports"}],
+        "next_action": "No action required."
+      },
+      {
+        "id": "A2",
+        "text": "The design removes the control-plane single point of failure",
+        "obligation": "Trace shared dependencies and attempt to find a component whose failure takes down both replicas",
+        "risk": "high",
+        "blocking": true,
+        "required_witnesses": ["boundary", "counterexample"],
+        "witnesses": [
+          {"kind": "boundary", "source": "architecture.md both replicas depend on redis-primary", "outcome": "inconclusive"},
+          {"kind": "counterexample", "source": "failure scenario: redis-primary unavailable -> both replicas lose state", "outcome": "refutes"}
+        ],
+        "unresolved_reason": "Both service replicas still depend on one Redis primary.",
+        "next_action": "Remove or replicate the shared Redis dependency before claiming SPOF removal."
+      }
+    ]
+  },
+  "expected": {
+    "status": "refuted",
+    "next_claim": "A2",
+    "unresolved": ["A2"]
+  }
+}

@@ -1,5 +1,30 @@
 # Changelog
 
+## 4.2.0 - 2026-09-16
+
+### Changed
+
+- The default ShowMeWhy output is now an unresolved **verification surface** rather than a compressed report or proof graph.
+- Default responses contain the narrowest defensible result, at most three material `NEEDS YOU` items, and one concrete `DO NEXT` verification action.
+- MONITOR and operational-impact accounting are no longer appended to ordinary runs; they remain explicit modes.
+- Human-facing verification no longer uses a proof DAG by default. Typed provenance remains available underneath and through drill-down modes.
+- `why` mode now expands a claim/state/witness-or-gap ledger rather than an arrow chain.
+
+### Added
+
+- Domain-general claim → obligation → witness → scrutiny → closure verification grammar.
+- Deterministic `verification_surface.py` reference implementation with `VERIFIED`, `REFUTED`, and `OPEN` closure.
+- V2 machine-readable Verification Surface schema.
+- Reference fixtures spanning code, policy, research, contracts, data, and architecture.
+- Scale regression covering 500 material claims with 497 settled and only 3 exposed to the human surface.
+- Counterexample, boundary, regression, invariant, measurement, execution, source, and comparison witness types.
+
+### Product contract
+
+- ShowMeWhy now optimises for the **smallest remaining human verification surface**, not the smallest prose summary.
+- Agent assertions and confidence language are never sufficient witnesses by themselves.
+- `DO NEXT` is selected from the highest-consequence unresolved obligation rather than generated as generic advice.
+
 ## 4.1.1 - 2026-09-16
 
 ### Fixed
