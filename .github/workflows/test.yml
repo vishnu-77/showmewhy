@@ -68,7 +68,7 @@ jobs:
           fi
           claude plugin install showmewhy@showmewhy
 
-      - name: Verify plugin loads in a fresh CLI process
+      - name: Verify runtime-only plugin loads in a fresh CLI process
         shell: bash
         run: |
           set -euo pipefail
@@ -93,12 +93,12 @@ jobs:
           if 'showmewhy@showmewhy' not in text:
               raise SystemExit('ShowMeWhy was not persisted in the installed plugin registry')
 
-          skills = [
+          auto_skills = [
               path for path in root.rglob('SKILL.md')
-              if 'showmewhy' in path.parts
+              if path.parent.name == 'showmewhy' and path.parent.parent.name == 'skills'
           ]
-          if not skills:
-              raise SystemExit('Installed ShowMeWhy SKILL.md was not found in the Claude plugin cache')
+          if auto_skills:
+              raise SystemExit(f'Runtime plugin unexpectedly exposes a namespaced skill: {auto_skills[0]}')
 
-          print(f'accepted: {skills[0]}')
+          print('accepted: runtime plugin loaded without a namespaced ShowMeWhy skill')
           PY
