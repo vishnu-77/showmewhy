@@ -1,0 +1,34 @@
+{
+  "manifest": {
+    "result": "The data migration preserves row counts, but null-handling compatibility is still unverified.",
+    "claims": [
+      {
+        "id": "D1",
+        "text": "The migration preserves row count",
+        "obligation": "Compare source and destination row counts after migration",
+        "risk": "medium",
+        "required_witnesses": ["measurement", "comparison"],
+        "witnesses": [
+          {"kind": "measurement", "source": "migration-check.csv source=100000 destination=100000", "outcome": "supports"},
+          {"kind": "comparison", "source": "row-count invariant before/after", "outcome": "supports"}
+        ],
+        "next_action": "No action required."
+      },
+      {
+        "id": "D2",
+        "text": "Null semantics are preserved for downstream consumers",
+        "obligation": "Exercise rows containing null and missing values through a downstream consumer",
+        "risk": "high",
+        "required_witnesses": ["boundary", "regression"],
+        "witnesses": [{"kind": "invariant", "source": "destination schema permits null", "outcome": "inconclusive"}],
+        "unresolved_reason": "Schema acceptance does not prove downstream null behaviour remains unchanged.",
+        "next_action": "Run null and missing-value fixtures through one downstream consumer."
+      }
+    ]
+  },
+  "expected": {
+    "status": "needs_review",
+    "next_claim": "D2",
+    "unresolved": ["D2"]
+  }
+}

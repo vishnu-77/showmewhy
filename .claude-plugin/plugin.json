@@ -1,6 +1,6 @@
 {
   "name": "showmewhy",
-  "description": "Evidence-backed ShowMeWhy Skill plus local runtime for context compression, provenance and fail-safe policy in Claude Code.",
+  "description": "Verify material agent claims, surface only unresolved human verification gaps, and retain inspectable local evidence and provenance in Claude Code.",
   "author": {
     "name": "Vishnu Prashanth",
     "url": "https://github.com/vishnu-77"
@@ -8,5 +8,5 @@
   "homepage": "https://github.com/vishnu-77/showmewhy",
   "repository": "https://github.com/vishnu-77/showmewhy",
   "license": "MIT",
-  "keywords": ["agent-skills", "explainability", "provenance", "evidence", "context-compression", "token-efficiency", "claude-code"]
+  "keywords": ["agent-skills", "verification", "provenance", "evidence", "claim-verification", "context-compression", "claude-code"]
 }

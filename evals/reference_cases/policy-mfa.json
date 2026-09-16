@@ -1,0 +1,35 @@
+{
+  "manifest": {
+    "result": "The policy does not establish MFA for every production identity because a legacy-admin exception remains.",
+    "claims": [
+      {
+        "id": "P1",
+        "text": "All production identities require MFA",
+        "obligation": "Find the mandatory MFA rule and search for production exceptions",
+        "risk": "high",
+        "blocking": true,
+        "required_witnesses": ["source", "counterexample"],
+        "witnesses": [
+          {"kind": "source", "source": "policy.md:4.2 mandatory MFA", "outcome": "supports"},
+          {"kind": "counterexample", "source": "policy.md:7.1 legacy-admin bypass", "outcome": "refutes"}
+        ],
+        "unresolved_reason": "The legacy-admin bypass contradicts the universal MFA claim.",
+        "next_action": "Remove the legacy-admin bypass or narrow the policy claim."
+      },
+      {
+        "id": "P2",
+        "text": "Break-glass access is time-limited",
+        "obligation": "Locate an explicit expiry requirement",
+        "risk": "medium",
+        "required_witnesses": ["source"],
+        "witnesses": [{"kind": "source", "source": "policy.md:7.3 break-glass expires after 60 minutes", "outcome": "supports"}],
+        "next_action": "No action required."
+      }
+    ]
+  },
+  "expected": {
+    "status": "refuted",
+    "next_claim": "P1",
+    "unresolved": ["P1"]
+  }
+}

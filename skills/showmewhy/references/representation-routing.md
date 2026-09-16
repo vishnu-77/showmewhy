@@ -1,16 +1,22 @@
 # Representation routing
 
-Choose the smallest representation that reduces reading.
+Verification is **not** rendered as a proof DAG by default. The human verification surface stays compact: result, unresolved material claims, and one next action.
+
+Use a visual only when the **subject matter** becomes easier to understand because of it.
 
 | Information shape | Default | Avoid |
 |---|---|---|
-| Simple answer | text | diagram for decoration |
-| Ranked alternatives | table | prose list with repeated criteria |
-| Cause / effect | directed graph | claiming causation from correlation |
+| Simple result | text | decorative diagram |
+| Verification state | compact `VERIFIED / NEEDS YOU / DO NEXT` surface | arrow chain or evidence graph |
+| Claim drill-down | table (`claim · state · witness/gap`) | narrative proof essay |
+| Ranked alternatives | table | repeated prose |
 | Chronological events | timeline | unordered bullets |
-| Distribution / counts | compact bars | pie chart unless part-to-whole is genuinely useful |
+| Distribution / counts | compact bars | chart when two numbers suffice |
 | Hierarchy | tree | flat prose |
-| Dependency / architecture | graph | oversized Mermaid for simple relations |
-| Uncertainty | alternatives + caveat | fake numeric certainty |
+| Architecture / dependencies | component diagram only when structure matters | oversized Mermaid |
+| Comparison | table | parallel paragraphs |
+| Uncertainty | explicit OPEN claim + missing obligation | fake confidence percentage |
 
-Routing rule: if the visual takes as much effort to parse as two or three clear sentences, use the sentences.
+Routing rule: if the representation takes as much effort to parse as two or three clear lines, use the lines.
+
+Typed provenance may remain available to machines and `why` mode, but it is not the default human UI.

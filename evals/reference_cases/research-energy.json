@@ -1,0 +1,34 @@
+{
+  "manifest": {
+    "result": "The study supports lower token use, but it does not yet establish lower operational energy use.",
+    "claims": [
+      {
+        "id": "R1",
+        "text": "Method X reduces output tokens versus baseline",
+        "obligation": "Compare measured token counts under the same task set",
+        "risk": "medium",
+        "required_witnesses": ["measurement", "comparison"],
+        "witnesses": [
+          {"kind": "measurement", "source": "results.csv token_count rows baseline/method_x", "outcome": "supports"},
+          {"kind": "comparison", "source": "Table 3 paired task comparison", "outcome": "supports"}
+        ],
+        "next_action": "No action required."
+      },
+      {
+        "id": "R2",
+        "text": "Method X reduces operational energy use",
+        "obligation": "Measure energy under equivalent hardware/workload or narrow the claim to an estimate",
+        "risk": "medium",
+        "required_witnesses": ["measurement"],
+        "witnesses": [{"kind": "source", "source": "discussion.md energy estimate from token proxy", "outcome": "inconclusive"}],
+        "unresolved_reason": "Energy is estimated from tokens; no direct energy measurement exists.",
+        "next_action": "Measure energy directly or rewrite the claim as an estimate."
+      }
+    ]
+  },
+  "expected": {
+    "status": "needs_review",
+    "next_claim": "R2",
+    "unresolved": ["R2"]
+  }
+}
