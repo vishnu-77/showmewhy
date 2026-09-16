@@ -1,55 +1,104 @@
 # ShowMeWhy
 
+<div align="center">
+
 **Don't tell me everything. Show me why.**
 
-ShowMeWhy is a Claude Code plugin and Agent Skill that turns verbose agent work into a compact, evidence-backed decision receipt. Instead of returning another wall of explanation, it leads with the conclusion, keeps only the signals that matter, shows the shortest inspectable evidence path, preserves material caveats, and can report the context cost of reaching the result. The goal is simple: make agent output easier to trust, easier to verify, and cheaper to carry forward.
+Evidence-backed answers for Claude Code.
+
+`CONCLUSION → EVIDENCE → PROVENANCE → COST`
 
 ```text
 /showmewhy
 ```
 
-## Install
+</div>
 
-The recommended installation is the full Claude Code plugin because it includes the `/showmewhy` Skill together with the local runtime used for evidence retention, context compression, provenance and adaptive safety. Use the explicit HTTPS repository URL so installation does not depend on local SSH host-key configuration.
+---
 
-```bash
-claude plugin marketplace add https://github.com/vishnu-77/showmewhy.git && claude plugin install showmewhy@showmewhy
+## The README in 30 seconds
+
+```text
+WHAT
+A clean /showmewhy command for turning agent work into an inspectable decision receipt.
+
+WHY
+verbose output → signal → evidence path → conclusion
+
+PROOF
+raw evidence is retained before compression, provenance is inspectable,
+and CI installs the real Claude runtime on Linux, macOS and Windows.
+
+COST
+less material carried forward when the runtime can safely compress it.
 ```
 
-The repository is private during preview, so Git on the local machine must already be authenticated for `vishnu-77/showmewhy`. After installation, start Claude Code normally and invoke ShowMeWhy in the same conversation where the work is happening.
+ShowMeWhy is built for the moment after Claude has done real work and you do not want another wall of narration. It leads with the result, keeps the evidence that materially supports it, shows the shortest useful provenance path, preserves decision-changing caveats, and can account for the context cost of the result. The visible habit is deliberately one command: **`/showmewhy`**.
+
+[Install](#install) · [See the difference](#see-the-difference) · [The receipt](#the-showmewhy-receipt) · [Proof](#dont-trust-the-readme-show-me-the-proof) · [Deep dive](#deep-dive)
+
+## Install
+
+### macOS, Linux and WSL
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh | bash
+```
+
+### Windows PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
+```
+
+Then open a new Claude Code session:
+
+```bash
+claude
+```
+
+and use:
 
 ```text
 /showmewhy why are my authentication tests failing?
 ```
 
-If only the prompt-level Agent Skill is wanted, without the Claude runtime hook, install the Skill directly:
+The installer deliberately sets up two separate pieces. A **personal Claude Skill** is installed at `~/.claude/skills/showmewhy/`, which gives you the clean `/showmewhy` command. A **runtime-only plugin** is installed alongside it for hooks, evidence retention, context compression, provenance and adaptive safety. The plugin may appear internally in `claude plugin list` as `showmewhy@showmewhy`; that is implementation detail, not the command you type.
 
-```bash
-npx skills add vishnu-77/showmewhy --skill showmewhy
+The installers are plain text in this repository. If you prefer to inspect before executing, read [`install.sh`](install.sh) or [`install.ps1`](install.ps1), then run the local file.
+
+## See the difference
+
+Without ShowMeWhy, the useful answer can be buried inside tool output, repeated observations and narrative explanation:
+
+```text
+pytest output
+├── hundreds of passing lines
+├── 5 failures
+├── stack traces
+├── repeated explanation
+└── root cause somewhere near the end
 ```
 
-## The receipt
-
-A ShowMeWhy Receipt is deliberately small enough to scan but structured enough to inspect. A typical result looks like this:
+With ShowMeWhy:
 
 ```text
 AUTH REGRESSION
 
-5 / 428 tests failed.
+5 authentication tests failed.
 
 WHY
-
 middleware changed
       ↓
 validation skipped
       ↓
 expired session accepted
       ↓
-5 authentication tests failed
+authentication tests failed
 
 MONITOR
 Evidence  tests/auth.spec.ts::rejects_expired_session — FAIL before, PASS after
-Guard     CI must keep `rejects_expired_session` green
+Guard     CI must keep rejects_expired_session green
 Risk      MEDIUM
 Budget    1,600 / 2,000 tokens · REWARDED
 
@@ -57,43 +106,178 @@ Budget    1,600 / 2,000 tokens · REWARDED
 ShowMeWhy · ~184 / 300 tokens · ↓72%
 ```
 
-The `WHY` section is observable provenance rather than private chain-of-thought. ShowMeWhy distinguishes observations, evidence, inference, conclusions and caveats, and it does not promote correlation into causation without explicit support. Confidence is qualitative and omitted when the available evidence does not justify it.
+**Less narration. More justification.**
+
+## The ShowMeWhy Receipt
+
+The receipt is the product primitive. It is small enough to scan quickly but structured enough to inspect when the conclusion matters.
+
+```text
+┌──────────────────────────────────────────────┐
+│ SHOWMEWHY RECEIPT                            │
+├──────────────────────────────────────────────┤
+│ WHAT                                         │
+│ Authentication regression                    │
+│                                              │
+│ WHY                                          │
+│ middleware → validation → failing test       │
+│                                              │
+│ PROOF                                        │
+│ auth.spec.ts::rejects_expired_session        │
+│                                              │
+│ HOW SURE                                     │
+│ HIGH · directly reproduced                   │
+│                                              │
+│ COST                                         │
+│ ~184 / 300 tokens · ↓72%                     │
+└──────────────────────────────────────────────┘
+```
+
+`WHY` is observable provenance, **not private chain-of-thought**. ShowMeWhy distinguishes observations, evidence, inference, conclusions and caveats. It does not turn correlation into causation merely because a causal story sounds plausible.
+
+```text
+CORRELATED_WITH  ≠  CAUSED_BY
+```
+
+## Don't trust the README. Show me the proof.
+
+ShowMeWhy treats its own packaging the same way it treats an answer: claims should have inspectable evidence. CI does more than parse manifests.
+
+| Claim | Release gate |
+|---|---|
+| The core contracts still work | Python test matrix on 3.11, 3.12 and 3.13 |
+| The runtime is a valid Claude plugin | `claude plugin validate` on a clean runner |
+| The plugin actually loads | real marketplace add + install + fresh-process `plugin list` |
+| `/showmewhy` is global rather than plugin-namespaced | personal Skill is verified at `~/.claude/skills/showmewhy/` and the plugin cache is checked for an auto-discovered ShowMeWhy Skill |
+| Installation is repeatable | the installer is run twice on the same clean runner |
+| The install works across the supported desktop shells | acceptance runs on Ubuntu, macOS and Windows |
+
+A release is created only after the main test workflow succeeds. Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases), not in this README.
 
 ## How it works
 
-ShowMeWhy can operate purely as a response transformation, but the Claude Code plugin also watches eligible verbose Bash results before they are carried further into agent context. Raw output is retained locally first, then a deterministic parser produces a compact execution digest for the model. Short, unsupported or uncertain outputs pass through unchanged, stderr is preserved, and the runtime fails open rather than hiding information when it cannot safely compress a result. Runtime state is kept under `.showmewhy/`, which is ignored by Git.
-
 ```text
+                         CLAUDE CODE
+                             │
+                       /showmewhy
+                             │
+                  personal ShowMeWhy Skill
+                             │
+                             ▼
+                     SHOWMEWHY RECEIPT
+                 WHAT · WHY · PROOF · COST
+
+Meanwhile, for eligible tool output:
+
 verbose Bash result
-       │
-       ├──────→ retained raw evidence
-       │
-       ▼
+        │
+        ├──────────────→ retained raw evidence
+        │                     evidence://...
+        ▼
 deterministic digest
-       │
-       ▼
+        │
+        ▼
 agent context
+        │
+        ▼
+typed provenance
+        │
+        ▼
+adaptive safety policy
 ```
 
-Each retained run can also be represented as a typed provenance graph. Evidence and execution artefacts receive stable local addresses such as `evidence://sha256/<digest>#tool_response` and `run://<run-id>#findings/<n>`, while relationships such as `SUPPORTS`, `CONTRADICTS`, `DERIVED_FROM`, `OBSERVED_IN`, `VERIFIED_BY`, `CORRELATED_WITH` and `CAUSED_BY` describe how the result was justified. A `CAUSED_BY` edge is rejected unless an explicit causal basis is attached, so the graph remains an inspectable evidence structure rather than a narrative invented after the fact.
+The design principle is simple:
 
-ShowMeWhy also adjusts context compression from operational feedback rather than task content. Repeated low-reopen, high-completeness runs can permit tighter compression, while frequent raw-evidence reopening or incomplete parsing moves the policy in a more conservative direction. Any reported material information loss activates a sticky safety lock that forces shadow mode until it is explicitly reviewed and cleared. The policy log stores run identifiers and operational metrics such as reopen state, parser completeness and compression percentage; it does not learn or retain task solutions, source code, generated summaries or raw tool output.
+> **The model can read less than the human can inspect.**
 
-## Modes
+Raw output is retained locally before an eligible Bash result is compressed. Unsupported, short or uncertain results pass through unchanged, stderr is preserved, and the runtime fails open rather than hiding information when safe compression is not justified.
 
-`/showmewhy` is the primary habit. Optional modes include `short` for the smallest useful answer, `why` for the evidence path, `visual` when a table, timeline, tree or graph reduces cognitive load, `compare` for structured comparison, `deep` for a larger evidence budget, `monitor` for evidence/guard/risk/budget reporting, `impact` for context and operational-impact accounting, and `json` for a machine-readable receipt. These are soft presentation budgets rather than hard truncation rules; correctness, security-relevant findings and material caveats always take priority.
+## Trust invariants
 
-## Evidence, risk and guards
+```text
+SHOWMEWHY WILL                              SHOWMEWHY WILL NOT
 
-For substantive conclusions, ShowMeWhy can attach one independently verifiable evidence line and one concrete recurrence guard. Evidence should resolve to an observable artefact such as a test result, file and line, command output, source citation or retained run. A guard describes how recurrence will be detected through a named regression test, CI check, assertion, invariant or alert; it never claims that a failure has become impossible. Risk is assessed independently from confidence so a well-supported conclusion can still be high-risk when the blast radius is large.
+✓ retain raw evidence first                × expose private chain-of-thought
+✓ fail open when parsing is uncertain      × invent confidence percentages
+✓ preserve material stderr                 × turn correlation into causation
+✓ expose inspectable provenance            × claim spent compute was "saved"
+✓ back off when evidence is reopened       × learn task solutions into policy
+✓ enter shadow mode after reported loss    × hide material risk to hit a budget
+```
 
-## Token and operational-impact accounting
+Confidence is qualitative and included only when the evidence supports it. Risk is independent of confidence: a conclusion can be strongly evidenced and still describe a high-risk condition.
 
-ShowMeWhy separates presentation reduction from context actually avoided. Making an answer shorter after the model has already generated it is reported as presentation reduction, not as energy or emissions saved. When the runtime genuinely prevents verbose material from entering subsequent model context, the avoided context can be measured and used for an explicitly modelled operational CO₂e estimate. The methodology keeps energy use, PUE and grid-carbon assumptions visible and does not claim a fixed token-to-tree conversion. See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md) for the calculation model.
+## One command, several views
 
-## Local inspection
+```text
+/showmewhy
+    default decision receipt
 
-Raw evidence remains available locally when a compressed digest is not enough. Provenance, run comparison and the local static viewer can be invoked from the runtime CLI, and adaptive-policy feedback can be recorded explicitly when evidence was reopened or material information was lost.
+/showmewhy why
+    shortest useful evidence path
+
+/showmewhy short
+    smallest justified answer
+
+/showmewhy visual
+    table, timeline, tree or graph when structure helps
+
+/showmewhy compare
+    compact structured comparison
+
+/showmewhy monitor
+    evidence · guard · risk · next-task budget
+
+/showmewhy impact
+    context reduction and operational-impact accounting
+
+/showmewhy json
+    machine-readable receipt
+
+/showmewhy deep
+    larger evidence budget for complex work
+```
+
+These are soft presentation budgets. Correctness, security-relevant findings and material caveats take priority over being short.
+
+## Deep dive
+
+<details>
+<summary><strong>Context compression</strong></summary>
+
+The runtime watches eligible verbose Bash `PostToolUse` results. It stores raw evidence first, then uses deterministic parsers for recognised output shapes and creates a compact execution digest for subsequent context. A short, unsupported or low-confidence result is not replaced merely to produce a smaller number.
+
+Runtime state is local under `.showmewhy/`, which is ignored by Git. Shadow mode can be forced with `SHOWMEWHY_MODE=shadow`, and a manual context target can be provided with `SHOWMEWHY_CONTEXT_BUDGET_TOKENS`.
+
+</details>
+
+<details>
+<summary><strong>Inspectable provenance</strong></summary>
+
+Retained runs can be represented as typed provenance graphs. Evidence and execution artefacts receive stable local addresses such as `evidence://sha256/<digest>#tool_response` and `run://<run-id>#findings/<n>`. Relationships include `SUPPORTS`, `CONTRADICTS`, `DERIVED_FROM`, `OBSERVED_IN`, `VERIFIED_BY`, `CORRELATED_WITH` and `CAUSED_BY`.
+
+A `CAUSED_BY` edge requires an explicit causal basis. The provenance graph is an inspectable evidence structure, not a reconstructed hidden reasoning trace.
+
+</details>
+
+<details>
+<summary><strong>Adaptive safety policy</strong></summary>
+
+Compression adapts from operational feedback rather than task content. Repeated evidence reopening or incomplete parsing makes the policy more conservative. Reported material information loss activates a sticky safety lock and forces shadow mode until it is explicitly reviewed and cleared. Policy feedback stores operational metrics; it does not learn source code, raw tool output, generated answers or task solutions.
+
+</details>
+
+<details>
+<summary><strong>Token and operational-impact accounting</strong></summary>
+
+ShowMeWhy separates presentation reduction from context actually avoided. Making already-generated prose shorter does not undo inference cost. Operational CO₂e avoidance is only appropriate when the runtime genuinely prevents material from entering later model context and the estimate has a defensible baseline. Assumptions remain visible rather than being collapsed into a fixed token-to-tree claim.
+
+See [`standalone/showmewhy/references/impact-methodology.md`](standalone/showmewhy/references/impact-methodology.md).
+
+</details>
+
+<details>
+<summary><strong>Local inspection</strong></summary>
 
 ```bash
 PYTHONPATH=runtime python3 -m showmewhy_runtime.cli provenance <run-id>
@@ -103,28 +287,22 @@ PYTHONPATH=runtime python3 -m showmewhy_runtime.cli feedback <run-id> --reopened
 PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy
 ```
 
-Shadow mode can be forced with `SHOWMEWHY_MODE=shadow`, and a manual context target can be supplied with `SHOWMEWHY_CONTEXT_BUDGET_TOKENS`. An adaptive safety lock should only be cleared after the underlying material-loss event has been reviewed.
+The machine-readable receipt schema lives at [`standalone/showmewhy/references/showmewhy-receipt.schema.json`](standalone/showmewhy/references/showmewhy-receipt.schema.json).
 
-## Machine-readable output
-
-`/showmewhy json` emits the same receipt contract in machine-readable form. The schema is maintained at [`skills/showmewhy/references/showmewhy-receipt.schema.json`](skills/showmewhy/references/showmewhy-receipt.schema.json), allowing other tools to consume conclusions, evidence, caveats, confidence, monitor data and impact metadata without scraping prose.
-
-## Privacy and security
-
-ShowMeWhy is local-first. Raw runtime evidence stays on the machine unless the user explicitly moves or shares it, adaptive-policy feedback stores operational metrics rather than task content, unsupported parser states fail open, and security-relevant information is not intentionally suppressed merely to meet a size target. See [`SECURITY.md`](SECURITY.md) for security reporting and the repository's trust assumptions.
+</details>
 
 ## Development
 
-The deterministic contract, runtime, provenance, policy and plugin-packaging tests can be run with:
+Run the deterministic contract, runtime, provenance, policy and packaging tests with:
 
 ```bash
 python -m unittest discover -s evals -p 'test_*.py'
 ```
 
-CI also installs Claude Code on a clean runner and verifies the real marketplace-add, plugin-install and fresh-process discovery path so packaging failures are caught before release. Development follows `feature/*` → `develop` → `release/*` → `main`.
+The repository follows `feature/*` → `develop` → `main`, with release publication gated by the main CI result. Security reports should follow [`SECURITY.md`](SECURITY.md); contribution guidance is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and GitHub Releases rather than in this README.
+## Project
 
-## Licence
+**Local-first · fail-open · inspectable**
 
-MIT. See [`LICENSE`](LICENSE).
+[Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Releases](https://github.com/vishnu-77/showmewhy/releases) · [MIT Licence](LICENSE)

@@ -4,13 +4,13 @@
     "name": "Vishnu Prashanth"
   },
   "metadata": {
-    "description": "ShowMeWhy plugin marketplace",
-    "version": "4.0.0"
+    "description": "ShowMeWhy runtime plugin marketplace",
+    "version": "4.1.0"
   },
   "plugins": [
     {
       "name": "showmewhy",
-      "description": "Evidence-backed explanation, adaptive context compression and inspectable provenance.",
+      "description": "Runtime-only evidence retention, adaptive context compression, provenance and fail-safe local policy for ShowMeWhy.",
       "source": "./",
       "strict": true
     }
