@@ -17,13 +17,14 @@ class PluginPackagingTests(unittest.TestCase):
         self.assertEqual(data["license"], "MIT")
         self.assertTrue(SKILL.exists())
 
-    def test_marketplace_points_to_real_skill(self):
+    def test_marketplace_uses_plugin_manifest_as_source_of_truth(self):
         data = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
         plugin = data["plugins"][0]
         self.assertEqual(plugin["name"], "showmewhy")
         self.assertEqual(plugin["source"], "./")
-        self.assertFalse(plugin["strict"])
-        self.assertIn("./skills/showmewhy", plugin["skills"])
+        self.assertTrue(plugin["strict"])
+        for component_key in ("skills", "hooks", "commands", "agents", "mcpServers"):
+            self.assertNotIn(component_key, plugin)
 
     def test_versions_are_aligned(self):
         expected = VERSION.read_text(encoding="utf-8").strip()
