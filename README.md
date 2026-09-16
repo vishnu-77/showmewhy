@@ -15,9 +15,6 @@ Evidence-backed answers for Claude Code.
 </div>
 
 ---
-
-## The README in 30 seconds
-
 ```text
 WHAT
 A clean /showmewhy command for turning agent work into an inspectable decision receipt.
