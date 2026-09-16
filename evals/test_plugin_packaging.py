@@ -17,13 +17,14 @@ class PluginPackagingTests(unittest.TestCase):
         self.assertEqual(data["license"], "MIT")
         self.assertTrue(SKILL.exists())
 
-    def test_marketplace_points_to_real_skill(self):
+    def test_marketplace_uses_plugin_manifest_as_source_of_truth(self):
         data = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
         plugin = data["plugins"][0]
         self.assertEqual(plugin["name"], "showmewhy")
         self.assertEqual(plugin["source"], "./")
-        self.assertFalse(plugin["strict"])
-        self.assertIn("./skills/showmewhy", plugin["skills"])
+        self.assertTrue(plugin["strict"])
+        for component_key in ("skills", "hooks", "commands", "agents", "mcpServers"):
+            self.assertNotIn(component_key, plugin)
 
     def test_versions_are_aligned(self):
         expected = VERSION.read_text(encoding="utf-8").strip()
@@ -32,13 +33,11 @@ class PluginPackagingTests(unittest.TestCase):
         self.assertEqual(plugin["version"], expected)
         self.assertEqual(marketplace["metadata"]["version"], expected)
 
-    def test_hook_path_exists_when_declared(self):
+    def test_standard_hook_file_is_auto_discoverable(self):
         plugin = json.loads(PLUGIN.read_text(encoding="utf-8"))
-        hook_path = plugin.get("hooks")
-        if hook_path:
-            self.assertTrue(hook_path.startswith("./"))
-            self.assertTrue((ROOT / hook_path[2:]).exists())
-            json.loads(HOOKS.read_text(encoding="utf-8"))
+        self.assertNotIn("hooks", plugin)
+        self.assertTrue(HOOKS.exists())
+        json.loads(HOOKS.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
