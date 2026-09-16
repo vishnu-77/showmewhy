@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "ShowMeWhy plugin marketplace",
-    "version": "4.2.0"
+    "version": "4.3.0"
   },
   "plugins": [
     {
       "name": "showmewhy",
-      "description": "Verify material agent claims, surface only unresolved verification gaps, and keep local evidence/provenance inspectable.",
+      "description": "Verify material agent claims, surface unresolved verification gaps, and detect when new evidence changes an earlier conclusion or assumption.",
       "source": "./",
       "strict": true
     }
