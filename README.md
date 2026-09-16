@@ -9,7 +9,7 @@ Evidence-backed answers for Claude Code.
 `CONCLUSION → EVIDENCE → PROVENANCE → COST`
 
 ```text
-/showmewhy
+/showmewhy:showmewhy
 ```
 
 </div>
@@ -17,20 +17,20 @@ Evidence-backed answers for Claude Code.
 ---
 ```text
 WHAT
-A clean /showmewhy command for turning agent work into an inspectable decision receipt.
+A compact way to turn agent work into an inspectable decision receipt.
 
 WHY
 verbose output → signal → evidence path → conclusion
 
 PROOF
 raw evidence is retained before compression, provenance is inspectable,
-and CI installs the real Claude runtime on Linux, macOS and Windows.
+and CI installs the real Claude plugin on Linux, macOS and Windows.
 
 COST
 less material carried forward when the runtime can safely compress it.
 ```
 
-ShowMeWhy is built for the moment after Claude has done real work and you do not want another wall of narration. It leads with the result, keeps the evidence that materially supports it, shows the shortest useful provenance path, preserves decision-changing caveats, and can account for the context cost of the result. The visible habit is deliberately one command: **`/showmewhy`**.
+ShowMeWhy is built for the moment when Claude has done real work and you do not want another wall of narration. It can also take a fresh question directly: when a new question is supplied, ShowMeWhy performs the necessary investigation first and then returns the answer as an evidence-backed receipt.
 
 [Install](#install) · [See the difference](#see-the-difference) · [The receipt](#the-showmewhy-receipt) · [Proof](#dont-trust-the-readme-show-me-the-proof) · [Deep dive](#deep-dive)
 
@@ -57,10 +57,12 @@ claude
 and use:
 
 ```text
-/showmewhy why are my authentication tests failing?
+/showmewhy:showmewhy why are my authentication tests failing?
 ```
 
-The installer deliberately sets up two separate pieces. A **personal Claude Skill** is installed at `~/.claude/skills/showmewhy/`, which gives you the clean `/showmewhy` command. A **runtime-only plugin** is installed alongside it for hooks, evidence retention, context compression, provenance and adaptive safety. The plugin may appear internally in `claude plugin list` as `showmewhy@showmewhy`; that is implementation detail, not the command you type.
+ShowMeWhy is installed as **one marketplace-managed plugin**. The Skill, hooks and runtime travel together in the same cached plugin version, so prompt behaviour cannot drift away from context compression, provenance or safety policy. The installer also enables auto-update for the ShowMeWhy marketplace and removes the older copied personal Skill if it exists.
+
+ShowMeWhy intentionally omits an explicit plugin version from `plugin.json`. Claude therefore uses the Git commit SHA as the plugin update key for this Git-hosted marketplace. A new upstream commit is distinguishable as a new plugin version without requiring a separate plugin-version bump. Semantic releases remain in `VERSION`, `CHANGELOG.md` and GitHub Releases.
 
 The installers are plain text in this repository. If you prefer to inspect before executing, read [`install.sh`](install.sh) or [`install.ps1`](install.ps1), then run the local file.
 
@@ -136,6 +138,8 @@ The receipt is the product primitive. It is small enough to scan quickly but str
 CORRELATED_WITH  ≠  CAUSED_BY
 ```
 
+A `CAUSED_BY` relationship has a deliberately high bar. A missing validator or regression guard may have allowed a defect to survive undetected, but that does not automatically mean the missing validator caused the defect.
+
 ## Don't trust the README. Show me the proof.
 
 ShowMeWhy treats its own packaging the same way it treats an answer: claims should have inspectable evidence. CI does more than parse manifests.
@@ -143,11 +147,13 @@ ShowMeWhy treats its own packaging the same way it treats an answer: claims shou
 | Claim | Release gate |
 |---|---|
 | The core contracts still work | Python test matrix on 3.11, 3.12 and 3.13 |
-| The runtime is a valid Claude plugin | `claude plugin validate` on a clean runner |
+| The complete package is a valid Claude plugin | `claude plugin validate` on a clean runner |
 | The plugin actually loads | real marketplace add + install + fresh-process `plugin list` |
-| `/showmewhy` is global rather than plugin-namespaced | personal Skill is verified at `~/.claude/skills/showmewhy/` and the plugin cache is checked for an auto-discovered ShowMeWhy Skill |
+| Skill and runtime update together | the installed plugin cache must contain `skills/showmewhy/SKILL.md` alongside the runtime |
+| Auto-update is configured | installer acceptance verifies `showmewhy.autoUpdate == true` in Claude marketplace state |
+| Migration removes stale prompt copies | a seeded legacy `~/.claude/skills/showmewhy` copy must be removed by the installer |
 | Installation is repeatable | the installer is run twice on the same clean runner |
-| The install works across the supported desktop shells | acceptance runs on Ubuntu, macOS and Windows |
+| The install works across supported desktop shells | acceptance runs on Ubuntu, macOS and Windows |
 
 A release is created only after the main test workflow succeeds. Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases), not in this README.
 
@@ -156,15 +162,18 @@ A release is created only after the main test workflow succeeds. Release history
 ```text
                          CLAUDE CODE
                              │
-                       /showmewhy
+                 /showmewhy:showmewhy
                              │
-                  personal ShowMeWhy Skill
+                   marketplace plugin
+                   ├── ShowMeWhy Skill
+                   ├── hooks
+                   └── runtime
                              │
                              ▼
                      SHOWMEWHY RECEIPT
                  WHAT · WHY · PROOF · COST
 
-Meanwhile, for eligible tool output:
+For eligible tool output:
 
 verbose Bash result
         │
@@ -200,38 +209,41 @@ SHOWMEWHY WILL                              SHOWMEWHY WILL NOT
 ✓ expose inspectable provenance            × claim spent compute was "saved"
 ✓ back off when evidence is reopened       × learn task solutions into policy
 ✓ enter shadow mode after reported loss    × hide material risk to hit a budget
+✓ evidence-cover quantified claims         × hide unsupported counts behind one example
 ```
 
 Confidence is qualitative and included only when the evidence supports it. Risk is independent of confidence: a conclusion can be strongly evidenced and still describe a high-risk condition.
 
-## One command, several views
+## Command views
+
+Use the same namespaced command with an optional mode:
 
 ```text
-/showmewhy
+/showmewhy:showmewhy
     default decision receipt
 
-/showmewhy why
+/showmewhy:showmewhy why
     shortest useful evidence path
 
-/showmewhy short
+/showmewhy:showmewhy short
     smallest justified answer
 
-/showmewhy visual
+/showmewhy:showmewhy visual
     table, timeline, tree or graph when structure helps
 
-/showmewhy compare
+/showmewhy:showmewhy compare
     compact structured comparison
 
-/showmewhy monitor
+/showmewhy:showmewhy monitor
     evidence · guard · risk · next-task budget
 
-/showmewhy impact
+/showmewhy:showmewhy impact
     context reduction and operational-impact accounting
 
-/showmewhy json
+/showmewhy:showmewhy json
     machine-readable receipt
 
-/showmewhy deep
+/showmewhy:showmewhy deep
     larger evidence budget for complex work
 ```
 
@@ -269,7 +281,7 @@ Compression adapts from operational feedback rather than task content. Repeated 
 
 ShowMeWhy separates presentation reduction from context actually avoided. Making already-generated prose shorter does not undo inference cost. Operational CO₂e avoidance is only appropriate when the runtime genuinely prevents material from entering later model context and the estimate has a defensible baseline. Assumptions remain visible rather than being collapsed into a fixed token-to-tree claim.
 
-See [`standalone/showmewhy/references/impact-methodology.md`](standalone/showmewhy/references/impact-methodology.md).
+See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md).
 
 </details>
 
@@ -284,7 +296,7 @@ PYTHONPATH=runtime python3 -m showmewhy_runtime.cli feedback <run-id> --reopened
 PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy
 ```
 
-The machine-readable receipt schema lives at [`standalone/showmewhy/references/showmewhy-receipt.schema.json`](standalone/showmewhy/references/showmewhy-receipt.schema.json).
+The machine-readable receipt schema lives at [`skills/showmewhy/references/showmewhy-receipt.schema.json`](skills/showmewhy/references/showmewhy-receipt.schema.json).
 
 </details>
 

@@ -1,6 +1,6 @@
 ---
 name: showmewhy
-description: Re-present the current answer, result, investigation, comparison, or explanation as a concise conclusion, useful visual structure, and evidence-backed why graph. Use when the user explicitly invokes /showmewhy or asks to show the result and why without verbose narration.
+description: Answer a fresh question or re-present an existing result as a concise conclusion, useful visual structure, and evidence-backed why graph. Use when the user explicitly invokes ShowMeWhy or asks to show the result and why without verbose narration.
 argument-hint: "[short|visual|why|compare|monitor|impact|json|deep] [question or scope]"
 user-invocable: true
 disable-model-invocation: true
@@ -8,11 +8,11 @@ disable-model-invocation: true
 
 # ShowMeWhy
 
-Re-present the relevant current result so the user can understand **what matters and why** with minimum unnecessary text.
+Give the user the shortest justified answer that preserves what matters and why.
 
 Do not expose, reconstruct, or claim to expose private chain-of-thought. The Why view is an evidence/provenance view built from observable facts, cited material, tool results, code, files, measurements, or clearly labelled inference.
 
-## Arguments
+## Invocation semantics
 
 Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 
@@ -23,20 +23,22 @@ Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 - `compare`: prioritise a compact comparison, normally a Markdown table, 350-token soft budget
 - `monitor`: show the one-line evidence, recurrence guard, risk, and deterministic next-task budget
 - `impact`: explain the token/CO₂e receipt or calculate it from available counts; do not re-answer the whole topic unless needed
-- `json`: emit a machine-readable ShowMeWhy Receipt V1 object conforming to `references/showmewhy-receipt.schema.json`
+- `json`: emit a machine-readable ShowMeWhy Receipt object conforming to `references/showmewhy-receipt.schema.json`
 - `deep`: preserve more detail for complex or high-consequence analysis, 700-token soft budget
 
-If the remaining arguments contain a question or scope, apply ShowMeWhy to that target. Otherwise apply it to the most recent substantive answer, investigation, task result, or current topic.
+If the arguments contain a fresh question or task, answer that question or perform the necessary investigation first, then return the result as a ShowMeWhy Receipt. **Do not refuse merely because no prior answer exists.** Use available tools, files, web research, tests, or measurements when they are needed to answer correctly.
+
+If no fresh question is supplied, apply ShowMeWhy to the most recent substantive answer, investigation, task result, or current topic. Reuse existing evidence rather than repeating expensive work unless the user requests fresh verification or the evidence may be stale.
 
 ## Receipt contract
 
-Read `references/receipt-contract.md` before formatting a substantive answer. V1 treats the human output as a stable ShowMeWhy Receipt with consistent semantics: conclusion, signal, optional visual, evidence-backed WHY, caveats/confidence where useful, monitor, and impact. The human answer may omit empty/non-useful sections, but it must not change the meaning of fields across tasks.
+Read `references/receipt-contract.md` before formatting a substantive answer. The human output uses stable semantics: conclusion, signal, optional visual, evidence-backed WHY, caveats/confidence where useful, monitor, and impact. Empty or non-useful sections may be omitted.
 
 For representation choice, read `references/representation-routing.md`. Use the smallest representation that reduces reading.
 
 ### `json` mode
 
-When invoked as `/showmewhy json`, emit only a JSON object matching `references/showmewhy-receipt.schema.json`. Use `UNVERIFIED`/`MISSING` strings and `constrained` state when evidence or guard cannot be established. Do not fabricate source references, token counts, carbon estimates, confidence, or causality just to populate the schema.
+When invoked with `json`, emit only a JSON object matching `references/showmewhy-receipt.schema.json`. Use `UNVERIFIED`/`MISSING` strings and `constrained` state when evidence or guard cannot be established. Do not fabricate source references, token counts, carbon estimates, confidence, or causality just to populate the schema.
 
 ## Response priority
 
@@ -51,37 +53,23 @@ Spend the token budget in this order:
 
 Correctness beats compression. Never omit a material security, safety, legal, operational, or decision-changing caveat solely to satisfy the budget.
 
-## 1. Conclusion first
+## Conclusion first
 
-Start with the answer, recommendation, root cause, result, or status. Prefer one to three lines.
+Start with the answer, recommendation, root cause, result, or status. Prefer one to three lines. Do not start by narrating what was inspected, searched, run, considered, or thought about.
 
-Do not start by narrating what was inspected, searched, run, considered, or thought about.
+Avoid filler such as "I looked through...", "After analysing...", "Here is a detailed breakdown...", or "Based on everything above..." unless that information itself is material evidence.
 
-Avoid filler such as:
+## Keep only signal
 
-- "I looked through..."
-- "After analysing..."
-- "Here is a detailed breakdown..."
-- "Based on everything above..."
-
-unless that information itself is material evidence.
-
-## 2. Keep only signal
-
-Retain facts that materially support, contradict, constrain, quantify, or qualify the conclusion.
-
-Remove:
-
-- repeated tool output
-- procedural narration
-- duplicated observations
-- generic background the user already has
-- restatements of the question
-- decorative commentary
+Retain facts that materially support, contradict, constrain, quantify, or qualify the conclusion. Remove repeated tool output, procedural narration, duplicated observations, generic background the user already has, restatements of the question, and decorative commentary.
 
 Prefer concrete numbers, paths, states, deltas, failures, constraints, and named evidence.
 
-## 3. Choose a visual only when it helps
+### Evidence coverage
+
+Every material quantified claim must be covered by observable evidence. If the conclusion says "4 fixes", "7 failures", or "3 causes", the receipt must either show evidence for each item or explicitly state that only part of the count was independently verified. Do not compress several unsupported claims behind one verified example.
+
+## Choose a visual only when it helps
 
 Read `references/visual-grammar.md` when a visual representation is useful.
 
@@ -96,11 +84,9 @@ Default mapping:
 - dependencies -> dependency graph
 - simple result -> no visual
 
-Prefer ASCII or Markdown when they are sufficient. Use Mermaid when relationships are too complex for a compact text diagram and the host renders Mermaid reliably.
+Prefer ASCII or Markdown when sufficient. Use Mermaid only when relationships are too complex for a compact text diagram and the host renders it reliably. Never create a visual merely for decoration.
 
-Never create a pie chart, graph, or diagram merely to make the answer look visual.
-
-## 4. Show why with provenance
+## Show why with provenance
 
 For substantive conclusions, build the shortest evidence path that justifies the result.
 
@@ -121,15 +107,13 @@ Use relationship semantics carefully:
 - CORRELATED_WITH
 - CAUSED_BY
 
-Do not label an edge `CAUSED_BY` unless causal support exists. Prefer `SUPPORTS`, `CORRELATED_WITH`, or an explicit uncertainty statement when causality is not established.
+`CAUSED_BY` is a high bar. Use it only when the evidence supports an actual causal relationship through a direct reproduction/intervention, a documented mechanism plus compatible observations, or another explicit causal basis. A missing validator, missing guard, or missing test usually **allowed a defect to pass undetected**; it did not necessarily cause the defect itself. Prefer `SUPPORTS`, `DERIVED_FROM`, or an explicit "allowed to pass undetected" statement when that is what the evidence shows.
 
 A Why graph must never be presented as the model's hidden reasoning trace.
 
 ## Risk / reward monitor
 
 For substantive debugging, security, reliability, architecture, or operational conclusions, read `references/risk-reward-monitor.md` and add a compact monitor when it helps the user act on the result.
-
-The monitor has four fields:
 
 ```text
 MONITOR
@@ -141,7 +125,7 @@ Budget    <next-task token recommendation>
 
 The **Evidence** line must name an observable source: a test, file/line, command result, measurement, or citation. Generic statements such as `the logs prove it` are not evidence. If no source can be named, mark it `UNVERIFIED`.
 
-The **Guard** line must name the concrete check that would detect recurrence: a regression test, invariant, CI policy, or alert condition. Do not claim the problem "cannot happen again" merely because a guard exists; say the guard will detect the identified recurrence class.
+The **Guard** line must name the concrete check that would detect recurrence: a regression test, invariant, CI policy, or alert condition. A guard reduces recurrence risk; it does not prove the original defect's cause and does not make recurrence impossible.
 
 Budget state is deterministic:
 
@@ -153,17 +137,15 @@ Within the active band, risk selects the recommendation:
 - REWARDED: LOW 2,000 · MEDIUM 1,600 · HIGH 1,200
 - CONSTRAINED: LOW 1,800 · MEDIUM 1,300 · HIGH 800
 
-Use `scripts/monitor.py` when tool execution is available. In Skill-only V1 this is a recommendation, not a claim that the host runtime enforces the next call.
+Use `scripts/monitor.py` when tool execution is available.
 
 ### `monitor` mode
 
-When invoked as `/showmewhy monitor`, return only the current monitor state, evidence line, guard, risk, and next-task budget unless the user asks for more.
+When invoked with `monitor`, return only the current monitor state, evidence line, guard, risk, and next-task budget unless the user asks for more.
 
 ## Confidence
 
 Only include confidence when it adds value and can be justified from evidence quality.
-
-Use:
 
 - HIGH: multiple direct/independent pieces of evidence or direct verification
 - MEDIUM: reasonable inference with incomplete verification
@@ -174,8 +156,6 @@ Omit confidence rather than manufacture precision. Do not output numeric confide
 ## Token budget and receipt
 
 For a substantial transformation, finish with a one- or two-line ShowMeWhy receipt when it does not distract from the answer.
-
-Preferred format:
 
 ```text
 ────────────────────────────────
@@ -195,19 +175,17 @@ Rules:
 8. Never claim prior compute has been undone.
 9. If tokens were genuinely prevented from generation/consumption by a runtime mechanism, `operational CO₂e avoided` is acceptable.
 
-For carbon calculations, read `references/impact-methodology.md`. Use `scripts/impact.py` when tool execution is available and token counts or text are available. If the estimate uses the built-in reference profile, retain the `*` marker or otherwise state that it is a low-confidence reference estimate.
-
-If a credible calculation cannot be made, omit the CO₂e number rather than inventing one.
+For carbon calculations, read `references/impact-methodology.md`. Use `scripts/impact.py` when tool execution is available and token counts or text are available. If a credible calculation cannot be made, omit the CO₂e number rather than inventing one.
 
 ## `impact` mode
 
-When invoked as `/showmewhy impact`:
+When invoked with `impact`:
 
 - report source tokens, output tokens, reduced tokens, reduction percentage and budget usage when available
 - report the energy/carbon profile used
 - distinguish presentation-equivalent reduction from realised operational avoidance
 - show estimate quality
-- keep methodology concise; point to the methodology rather than reproducing it
+- keep methodology concise
 
 ## Stop condition
 
