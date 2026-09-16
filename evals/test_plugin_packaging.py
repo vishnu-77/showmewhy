@@ -33,13 +33,11 @@ class PluginPackagingTests(unittest.TestCase):
         self.assertEqual(plugin["version"], expected)
         self.assertEqual(marketplace["metadata"]["version"], expected)
 
-    def test_hook_path_exists_when_declared(self):
+    def test_standard_hook_file_is_auto_discoverable(self):
         plugin = json.loads(PLUGIN.read_text(encoding="utf-8"))
-        hook_path = plugin.get("hooks")
-        if hook_path:
-            self.assertTrue(hook_path.startswith("./"))
-            self.assertTrue((ROOT / hook_path[2:]).exists())
-            json.loads(HOOKS.read_text(encoding="utf-8"))
+        self.assertNotIn("hooks", plugin)
+        self.assertTrue(HOOKS.exists())
+        json.loads(HOOKS.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
