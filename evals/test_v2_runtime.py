@@ -35,15 +35,23 @@ class V2RuntimeTests(unittest.TestCase):
     def test_unknown_shape_fails_open(self):
         self.assertIsNone(replace_response_text("Read", {"content": "old"}, "compact"))
 
-    def test_evidence_is_written_before_replacement(self):
+    def test_evidence_is_written_before_explicit_replacement(self):
         with tempfile.TemporaryDirectory() as td:
             event = {"cwd": td, "session_id": "s1", "tool_use_id": "t1", "tool_name": "Bash", "tool_input": {"command": "pytest -q"}, "tool_response": {"stdout": self._pytest_log(), "stderr": "", "interrupted": False, "isImage": False}}
-            output, digest = process_event(event, target_tokens=300)
+            output, digest = process_event(event, mode="replace", target_tokens=300)
             self.assertIn("updatedToolOutput", output["hookSpecificOutput"])
             self.assertGreater(digest["tokens_avoided"], 0)
             stored = EvidenceStore(td).get(digest["raw_ref"])
             self.assertIn("test_expired_session", stored["tool_response"]["stdout"])
             self.assertTrue((Path(td) / ".showmewhy" / "runs" / f"{digest['run_id']}.json").exists())
+
+    def test_default_mode_never_replaces(self):
+        with tempfile.TemporaryDirectory() as td:
+            event = {"cwd": td, "tool_name": "Bash", "tool_input": {}, "tool_response": {"stdout": self._pytest_log(), "stderr": "", "interrupted": False, "isImage": False}}
+            output, digest = process_event(event, target_tokens=300)
+            self.assertEqual(output, {})
+            self.assertIsNotNone(digest)
+            self.assertEqual(digest["policy"]["mode"], "shadow")
 
     def test_shadow_mode_never_replaces(self):
         with tempfile.TemporaryDirectory() as td:
