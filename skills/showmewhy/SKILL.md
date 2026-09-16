@@ -1,7 +1,7 @@
 ---
 name: showmewhy
 description: Verify a fresh answer or completed agent result, independently settle material claims where possible, surface only the smallest remaining verification gap, and detect when new evidence changes an earlier conclusion or relied-upon assumption.
-argument-hint: "[short|why|compare|monitor|impact|json|deep] [question or scope]"
+argument-hint: "[short|why|compare|monitor|impact|json|deep] [question or scope] | /stage [/stage ...] -- [task]"
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -28,6 +28,65 @@ Interpret `$ARGUMENTS` as an optional mode followed by optional scope.
 - `impact`: context/token/operational-impact accounting only
 - `json`: emit the applicable machine-readable Verification Surface or Context Delta object
 - `deep`: perform broader verification for complex or high-consequence work, while keeping the final human surface gap-first, 700-token soft budget
+
+Existing mode syntax remains valid. Composition is opt-in only when the first argument after the real `/showmewhy` invocation is itself slash-prefixed.
+
+### Embedded multi-stage composition
+
+ShowMeWhy may compose several behaviours while exposing **only one Claude Code command: `/showmewhy`**.
+
+Example:
+
+```text
+/showmewhy /monitor /showmewhy /i-have-adhd -- investigate why auth tests fail
+```
+
+Only the first `/showmewhy` is a Claude Code command invocation. Everything after it is `$ARGUMENTS`. Interpret the leading slash-prefixed tokens as a **ShowMeWhy-owned composition DSL**, never as requests to invoke other slash commands.
+
+For the example above, normalise the stages to:
+
+```text
+monitor -> verify -> focus
+```
+
+The embedded `/showmewhy` token means the ordinary ShowMeWhy verifier. `/i-have-adhd`, `/focus`, and `/concise` are compatibility aliases for ShowMeWhy's own `focus` presentation stage; they do **not** invoke, load, depend on, or claim to reproduce any external skill.
+
+Use `--` to separate composition stages from task text:
+
+```text
+/showmewhy <stage> [<stage> ...] -- [task]
+```
+
+When task text follows composition stages, require `--`. This is a safety boundary so paths, URLs, flags, and ordinary slash-prefixed text inside the task are not mistaken for stages. If no task follows, apply the composed stages to the most recent substantive answer, result, investigation, change, or decision.
+
+Supported stage tokens:
+
+- `/monitor` -> gather session-level observable verification state and risk signals; must be first when composed
+- `/showmewhy`, `/verify` -> run ordinary claim / obligation / witness / scrutiny / closure verification
+- `/deep` -> broaden verification obligations for complex or high-consequence work
+- `/compare` -> compare alternatives or earlier/current states using equivalent evidence obligations
+- `/why` -> render the expanded claim/witness/gap ledger
+- `/short` -> render the shortest gap-first surface
+- `/focus`, `/concise`, `/i-have-adhd` -> render one scannable result, decisive evidence/gap, and one next action
+- `/impact` -> add context/token/operational-impact accounting; terminal except that `/json` may follow
+- `/json` -> emit machine-readable output; must be final
+
+Composition stages operate on one evolving internal handoff state containing the task, observations, evidence references, material claims, closure states, optional Context Delta, risk, next action, and presentation preference. A later stage may enrich or re-render that state but must not silently discard evidence, caveats, `OPEN` claims, or `REFUTED` claims produced by an earlier stage.
+
+Rules:
+
+1. `monitor` gathers observable state; it does not substitute for verification.
+2. A presentation stage without an explicit verification stage gets `verify` inserted before it.
+3. `monitor` must be first when present.
+4. Select at most one presentation stage: `why`, `short`, `focus`, or `json`.
+5. `json` must be final.
+6. `impact` must be final, or immediately before `json`.
+7. Unknown slash-prefixed stage tokens fail closed with a supported-stage error; never try to execute them as external commands.
+8. Repeated adjacent aliases that normalise to the same stage may be collapsed.
+9. Existing Context Delta behaviour remains automatic inside verification; do not introduce `/delta`.
+10. Never expose private reasoning while handing state between stages.
+
+When deterministic parsing is useful, use `scripts/compose.py`. Read `references/composition.md` for the full grammar and stage contract.
 
 If the arguments contain a fresh question or task, answer or investigate it first, then verify the material claims in that result. **Do not refuse merely because no prior answer exists.** Use tools, files, tests, commands, web research, measurements, or source inspection when needed.
 
