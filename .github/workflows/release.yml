@@ -1,0 +1,111 @@
+name: release
+
+on:
+  workflow_run:
+    workflows: [test]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Validate release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          version = Path('VERSION').read_text(encoding='utf-8').strip()
+          if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+              raise SystemExit(f'Invalid VERSION: {version!r}')
+
+          plugin = json.loads(Path('.claude-plugin/plugin.json').read_text(encoding='utf-8'))
+          marketplace = json.loads(Path('.claude-plugin/marketplace.json').read_text(encoding='utf-8'))
+
+          if plugin.get('version') != version:
+              raise SystemExit('plugin.json version does not match VERSION')
+          if marketplace.get('metadata', {}).get('version') != version:
+              raise SystemExit('marketplace.json version does not match VERSION')
+
+          changelog = Path('CHANGELOG.md').read_text(encoding='utf-8')
+          if not re.search(rf'^##\s+{re.escape(version)}(?:\s|$)', changelog, re.MULTILINE):
+              raise SystemExit(f'CHANGELOG.md has no section for {version}')
+
+          print(f'release metadata aligned: {version}')
+          PY
+
+      - name: Create tag and GitHub Release when version is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          TAG="v${VERSION}"
+
+          python - "$VERSION" > /tmp/release-notes.md <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          version = sys.argv[1]
+          lines = Path('CHANGELOG.md').read_text(encoding='utf-8').splitlines()
+          start = None
+          end = len(lines)
+          heading = re.compile(r'^##\s+')
+          target = re.compile(rf'^##\s+{re.escape(version)}(?:\s|$)')
+
+          for i, line in enumerate(lines):
+              if target.match(line):
+                  start = i
+                  break
+
+          if start is None:
+              raise SystemExit(f'No changelog section for {version}')
+
+          for i in range(start + 1, len(lines)):
+              if heading.match(lines[i]):
+                  end = i
+                  break
+
+          body = '\n'.join(lines[start + 1:end]).strip()
+          if not body:
+              raise SystemExit(f'Changelog section for {version} is empty')
+          print(body)
+          PY
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "${TAG} already exists; no new tag will be created."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${TAG}" "${RELEASE_SHA}" -m "ShowMeWhy ${VERSION}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists; nothing to publish."
+            exit 0
+          fi
+
+          gh release create "${TAG}" \
+            --verify-tag \
+            --title "ShowMeWhy ${VERSION}" \
+            --notes-file /tmp/release-notes.md
