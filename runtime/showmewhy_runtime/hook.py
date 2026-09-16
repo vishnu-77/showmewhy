@@ -12,6 +12,16 @@ from .policy import recommend_policy
 from .provenance import build_graph, persist_graph
 
 
+def _replacement_eligible(result) -> tuple[bool, str]:
+    if not result.complete:
+        return False, "digest is incomplete"
+    if result.confidence != "high":
+        return False, f"parser confidence is {result.confidence}"
+    if result.parser in {"bounded-log", "passthrough"}:
+        return False, f"parser {result.parser} is not replacement-safe"
+    return True, "complete high-confidence structured parser"
+
+
 def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode: str | None = None, target_tokens: int | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
     tool_name = str(event.get("tool_name") or "")
     response = event.get("tool_response")
@@ -39,12 +49,15 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
     if result.text == text:
         return {}, None
     digest = build_digest(tool_name=tool_name, evidence_ref=raw_ref, raw_text=text, result=result, session_id=event.get("session_id"), tool_use_id=event.get("tool_use_id"))
+    replacement_eligible, replacement_reason = _replacement_eligible(result)
     digest["policy"] = {
         "mode": effective_mode,
         "target_tokens": effective_target,
         "safety_lock": bool(policy.get("safety_lock")),
         "samples": int(policy.get("samples", 0)),
         "reason": policy.get("reason"),
+        "replacement_eligible": replacement_eligible,
+        "replacement_reason": replacement_reason,
     }
 
     try:
@@ -59,6 +72,8 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
     if effective_mode == "shadow":
         return {}, digest
     if effective_mode != "replace":
+        return {}, digest
+    if not replacement_eligible:
         return {}, digest
 
     replacement = replace_response_text(tool_name, response, result.text + f"\nRaw evidence: {raw_ref}")
