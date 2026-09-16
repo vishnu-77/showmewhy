@@ -3,7 +3,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
+SKILL = ROOT / "standalone" / "showmewhy" / "SKILL.md"
 README = ROOT / "README.md"
 VERSION = ROOT / "VERSION"
 
@@ -15,6 +15,7 @@ class SkillContractTests(unittest.TestCase):
         cls.readme = README.read_text(encoding="utf-8")
 
     def test_manual_invocation_is_explicit(self):
+        self.assertIn("name: showmewhy", self.skill)
         self.assertIn("user-invocable: true", self.skill)
         self.assertIn("disable-model-invocation: true", self.skill)
         self.assertIn("/showmewhy", self.readme)
@@ -36,7 +37,7 @@ class SkillContractTests(unittest.TestCase):
 
     def test_skill_internal_references_are_portable(self):
         self.assertIn("references/showmewhy-receipt.schema.json", self.skill)
-        self.assertNotIn("skills/showmewhy/references/showmewhy-receipt.schema.json", self.skill)
+        self.assertNotIn("standalone/showmewhy/references/showmewhy-receipt.schema.json", self.skill)
 
     def test_readme_is_version_agnostic(self):
         self.assertNotRegex(self.readme, r"(?m)^##\s+V\d+")
