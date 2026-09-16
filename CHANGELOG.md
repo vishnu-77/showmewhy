@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.3.0 - 2026-09-16
+
+### Added
+
+- Automatic **Context Delta** rendering when new evidence materially changes an earlier conclusion, plan, or relied-upon assumption.
+- Temporal verification objects for `CONTEXT SET`, `ASSUMPTION`, `INVALIDATOR`, and `DELTA` while preserving the existing claim → obligation → witness → closure core.
+- Deterministic `context_delta.py` reference implementation that compares previous/current verification states and detects degraded, contradicted, resolved, and invalidated states.
+- Context Delta machine schema plus cross-domain fixtures covering infrastructure, research, policy, and contract changes.
+- Observable context-coverage tracking so ShowMeWhy can identify which missing evidence domains mattered without inventing retrospective reasoning.
+- Socratic thinker brand mark and lockup with a hidden inner dialogue profile and S-shaped reasoning path.
+
+### Changed
+
+- `/showmewhy` remains one mental model: ordinary results use the verification surface; material temporal changes automatically use the Delta surface.
+- Delta output is compact and decision-focused: `CHANGED`, optional `BROKEN ASSUMPTION`, decisive `NEW EVIDENCE`, optional `IMPACT` / `MISSED` / `BLOCKER`, then one `DO NEXT`.
+- Retrospective self-justification and session chronology are explicitly excluded from Delta output.
+- README now demonstrates both verification debt reduction and new-evidence state changes while keeping the product-first structure.
+
+### Product contract
+
+- Context Delta is an extension of the verification engine, not a new mode or separate product.
+- A broken assumption requires an observable invalidating witness; ShowMeWhy must not infer one simply to explain a changed result.
+- Previous `VERIFIED` claims can return to the human verification surface when current evidence invalidates their supporting assumptions.
+
 ## 4.2.0 - 2026-09-16
 
 ### Changed
