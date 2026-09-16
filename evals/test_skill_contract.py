@@ -31,7 +31,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("must never be presented as the model's hidden reasoning trace", self.skill)
 
     def test_causal_safety_is_explicit(self):
-        self.assertIn("CAUSED_BY is a high bar", self.skill)
+        self.assertIn("`CAUSED_BY` is a high bar", self.skill)
         self.assertIn("allowed a defect to pass undetected", self.skill)
 
     def test_quantified_claims_require_coverage(self):
