@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="brand/showmewhy-lockup.svg" alt="ShowMeWhy" width="520">
+<img src="brand/showmewhy-lockup.svg" alt="ShowMeWhy" width="460">
 
-**Review only what the AI couldn't prove.**
+**Know what the agent proved. Review only what remains.**
 
-Turn agent output into the smallest remaining verification surface.
+ShowMeWhy checks material agent claims against observable evidence and returns the smallest useful review surface: what is settled, what is still open, and what to do next.
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/vishnu-77/showmewhy?style=flat" alt="License"></a>
@@ -43,9 +43,9 @@ The installer sets up one marketplace-managed plugin containing the Skill, hooks
 
 ## What it does
 
-AI makes work cheap to produce and expensive to trust. ShowMeWhy tries to remove that verification debt before it reaches you.
+AI makes work cheap to produce; trust is still expensive. ShowMeWhy is a verification layer for agent output, not another summary generator.
 
-It does **not** review everything and hand you a longer report. Internally it breaks a result into material claims, defines what would establish or refute them, gathers observable witnesses, closes what it can, and surfaces only what remains unresolved.
+It turns important claims into explicit verification obligations, looks for direct witnesses or counterexamples, closes what the available evidence can actually establish, and surfaces only the material gaps that still need attention.
 
 ```text
 Agent: Done. Authentication migration complete. All tests pass.
@@ -67,7 +67,7 @@ DO NEXT
 Run a pre-migration mobile token through the new verifier.
 ```
 
-**Most tools show you more. ShowMeWhy tries to remove what you no longer need to review.**
+**Most review tools add more output. ShowMeWhy removes what no longer requires your attention.**
 
 ## Before / after
 
@@ -293,9 +293,11 @@ Its machine contract is [`skills/showmewhy/references/context-delta.schema.json`
 <details>
 <summary><strong>Context compression and retained evidence</strong></summary>
 
-Eligible verbose Bash `PostToolUse` results are stored as raw local evidence before deterministic parsing. Recognised result shapes can be replaced in model context with a smaller execution digest. Short, unsupported or low-confidence results are left untouched.
+ShowMeWhy stores eligible verbose Bash results as local raw evidence before deterministic parsing. By default the hook runs in **shadow mode**: it observes a copy and leaves the tool result delivered to the agent untouched.
 
-Runtime state is local under `.showmewhy/`. Reported material loss forces the adaptive policy into shadow mode until explicitly reviewed and cleared.
+Output replacement is explicit opt-in with `SHOWMEWHY_MODE=replace`, and even then only complete, high-confidence structured parsers are allowed to replace the visible result. Generic, incomplete or low-confidence digests remain observational only. Reported material loss forces the adaptive policy back into shadow mode until explicitly reviewed and cleared.
+
+Runtime state is local under `.showmewhy/`.
 
 </details>
 
