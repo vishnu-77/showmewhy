@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VALIDATOR = ROOT / "skills" / "showmewhy" / "scripts" / "validate_receipt.py"
+VALIDATOR = ROOT / "standalone" / "showmewhy" / "scripts" / "validate_receipt.py"
 
 spec = importlib.util.spec_from_file_location("receipt_validator", VALIDATOR)
 module = importlib.util.module_from_spec(spec)
@@ -12,7 +12,7 @@ spec.loader.exec_module(module)
 
 class ReceiptV1Tests(unittest.TestCase):
     def test_schema_is_v1(self):
-        schema = json.loads((ROOT / "skills" / "showmewhy" / "references" / "showmewhy-receipt.schema.json").read_text())
+        schema = json.loads((ROOT / "standalone" / "showmewhy" / "references" / "showmewhy-receipt.schema.json").read_text())
         self.assertEqual(schema["title"], "ShowMeWhy Receipt V1")
         self.assertIn("monitor", schema["required"])
         self.assertIn("impact", schema["required"])

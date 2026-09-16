@@ -5,7 +5,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
-SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
+STANDALONE_SKILL = ROOT / "standalone" / "showmewhy" / "SKILL.md"
+PLUGIN_SKILLS = ROOT / "skills"
 VERSION = ROOT / "VERSION"
 HOOKS = ROOT / "hooks" / "hooks.json"
 
@@ -15,7 +16,10 @@ class PluginPackagingTests(unittest.TestCase):
         data = json.loads(PLUGIN.read_text(encoding="utf-8"))
         self.assertEqual(data["name"], "showmewhy")
         self.assertEqual(data["license"], "MIT")
-        self.assertTrue(SKILL.exists())
+
+    def test_plugin_is_runtime_only_and_short_skill_is_standalone(self):
+        self.assertFalse(PLUGIN_SKILLS.exists(), "plugin must not expose a namespaced ShowMeWhy skill")
+        self.assertTrue(STANDALONE_SKILL.exists(), "standalone /showmewhy skill must ship with the repo")
 
     def test_marketplace_uses_plugin_manifest_as_source_of_truth(self):
         data = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
