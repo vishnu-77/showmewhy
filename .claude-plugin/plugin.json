@@ -9,6 +9,5 @@
   "homepage": "https://github.com/vishnu-77/showmewhy",
   "repository": "https://github.com/vishnu-77/showmewhy",
   "license": "MIT",
-  "keywords": ["agent-skills", "explainability", "provenance", "evidence", "context-compression", "token-efficiency", "claude-code"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["agent-skills", "explainability", "provenance", "evidence", "context-compression", "token-efficiency", "claude-code"]
 }
