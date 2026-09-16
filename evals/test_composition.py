@@ -5,6 +5,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / "skills" / "showmewhy" / "scripts" / "compose.py"
+COMPOSITION_REFERENCE = ROOT / "skills" / "showmewhy" / "references" / "composition.md"
+SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
 SKILLS = ROOT / "skills"
 
 spec = spec_from_file_location("showmewhy_compose", COMPOSE)
@@ -14,6 +16,11 @@ spec.loader.exec_module(compose)
 
 
 class CompositionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.skill = SKILL.read_text(encoding="utf-8")
+        cls.reference = COMPOSITION_REFERENCE.read_text(encoding="utf-8")
+
     def test_exact_multi_slash_example_stays_under_showmewhy(self):
         plan = compose.parse_arguments(
             "/monitor /showmewhy /i-have-adhd -- investigate why auth tests fail"
@@ -31,6 +38,18 @@ class CompositionTests(unittest.TestCase):
             if path.is_dir() and (path / "SKILL.md").is_file()
         )
         self.assertEqual(skill_dirs, ["showmewhy"])
+
+    def test_skill_contract_owns_composition(self):
+        self.assertIn("only one Claude Code command: `/showmewhy`", self.skill)
+        self.assertIn("ShowMeWhy-owned composition DSL", self.skill)
+        self.assertIn("scripts/compose.py", self.skill)
+        self.assertIn("references/composition.md", self.skill)
+        self.assertIn("do **not** invoke, load, depend on", self.skill)
+
+    def test_reference_contract_rejects_nested_command_claims(self):
+        self.assertIn("No nested slash command is invoked", self.reference)
+        self.assertIn("one public command", self.reference)
+        self.assertIn("fail closed", self.reference)
 
     def test_focus_aliases_do_not_require_external_skill_invocation(self):
         for alias in ("/focus", "/concise", "/i-have-adhd"):
