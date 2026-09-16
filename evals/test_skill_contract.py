@@ -86,8 +86,8 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("Release history belongs in", self.readme)
 
     def test_readme_leads_with_verification_wedge(self):
-        self.assertIn("Review only what the AI couldn't prove", self.readme)
-        self.assertIn("Most tools show you more", self.readme)
+        self.assertIn("Know what the agent proved. Review only what remains.", self.readme)
+        self.assertIn("Most review tools add more output", self.readme)
         self.assertIn("Works beyond code", self.readme)
 
     def test_readme_explains_temporal_verification(self):
