@@ -11,6 +11,8 @@
       },
       "baseline": {
         "inspected_claim_ids": ["c1", "c2", "c3", "c4"],
+        "detected_failure_ids": ["c2"],
+        "detected_counterexample_ids": ["x1"],
         "inspection_tokens": 800,
         "inspection_lines": 120,
         "verification_seconds": 240
@@ -38,6 +40,8 @@
       },
       "baseline": {
         "inspected_claim_ids": ["i1", "i2", "i3"],
+        "detected_failure_ids": [],
+        "detected_counterexample_ids": [],
         "inspection_tokens": 600,
         "inspection_lines": 90,
         "verification_seconds": 180
