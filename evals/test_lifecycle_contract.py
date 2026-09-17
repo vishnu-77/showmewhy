@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -9,10 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LifecycleContractTests(unittest.TestCase):
-    def test_release_metadata_is_441(self) -> None:
-        self.assertEqual((ROOT / "VERSION").read_text(encoding="utf-8").strip(), "4.4.1")
+    def test_release_metadata_is_aligned(self) -> None:
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+
         marketplace = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
-        self.assertEqual(marketplace["metadata"]["version"], "4.4.1")
+        self.assertEqual(marketplace["metadata"]["version"], version)
+
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertRegex(changelog, rf"(?m)^##\s+{re.escape(version)}(?:\s|$)")
 
     def test_skill_exposes_status_and_native_update_modes(self) -> None:
         skill = (ROOT / "skills" / "showmewhy" / "SKILL.md").read_text(encoding="utf-8")
