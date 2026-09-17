@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.4.2 - 2026-09-17
+
+### Fixed
+
+- Incomplete compression results can no longer replace Claude Code's visible Bash tool output, even when the active runtime policy requests `replace` mode.
+- ShowMeWhy now preserves the original active-context output whenever `CompressionResult.complete` is `false`, while still persisting raw evidence, the digest, provenance and policy metadata for later inspection.
+- Incomplete digests now record an explicit caveat that the original tool output was preserved.
+
+### Safety invariant
+
+- Destructive replacement is permitted only when the compressor declares the representation complete and the effective runtime mode is `replace`.
+- Generic bounded-log compression and any structured parser that truncates material findings remain non-destructive.
+- Raw evidence remains the source of truth; incomplete representations may assist inspection but cannot silently become the agent's only visible evidence.
+
+### Validation
+
+- Added regression coverage for generic logs with omitted material lines, truncated TypeScript output, truncated lint output, mixed stdout/stderr, and pipeline failures outside the bounded digest window.
+- Existing complete-parser replacement behaviour remains covered so the safety gate does not disable useful complete compression.
+- Full CI, Claude plugin acceptance and cross-platform installer acceptance pass with the invariant enabled.
+
 ## 4.4.1 - 2026-09-16
 
 ### Added
