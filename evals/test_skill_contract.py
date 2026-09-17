@@ -9,6 +9,8 @@ VERSION = ROOT / "VERSION"
 DELTA_SCHEMA = ROOT / "skills" / "showmewhy" / "references" / "context-delta.schema.json"
 DELTA_SCRIPT = ROOT / "skills" / "showmewhy" / "scripts" / "context_delta.py"
 BRAND_MARK = ROOT / "brand" / "showmewhy-mark.svg"
+BRAND_LOCKUP = ROOT / "brand" / "showmewhy-philosopher-lockup.svg"
+BRAND_MOTION = ROOT / "brand" / "showmewhy-arrange.svg"
 
 
 class SkillContractTests(unittest.TestCase):
@@ -97,10 +99,15 @@ class SkillContractTests(unittest.TestCase):
 
     def test_socratic_brand_mark_is_public(self):
         self.assertTrue(BRAND_MARK.is_file())
-        self.assertIn("brand/showmewhy-lockup.svg", self.readme)
+        self.assertTrue(BRAND_LOCKUP.is_file())
+        self.assertTrue(BRAND_MOTION.is_file())
+        self.assertIn("brand/showmewhy-philosopher-lockup.svg", self.readme)
+        self.assertIn("brand/showmewhy-arrange.svg", self.readme)
         mark = BRAND_MARK.read_text(encoding="utf-8")
         self.assertIn("Socratic thinker", mark)
         self.assertIn("inner profile", mark)
+        motion = BRAND_MOTION.read_text(encoding="utf-8")
+        self.assertIn("prefers-reduced-motion", motion)
 
 
 if __name__ == "__main__":
