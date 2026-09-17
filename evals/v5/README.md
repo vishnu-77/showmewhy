@@ -72,6 +72,12 @@ Each task record contains:
 
 For the default V5 surface, `showmewhy.surfaced_claim_ids` must equal `showmewhy.open_claim_ids`. `VERIFIED`, `REFUTED`, and `OPEN` sets must be pairwise disjoint.
 
+## Pilot corpus
+
+`evals/v5/pilot/` freezes the first six real-world upstream tasks used to validate the execution protocol before scaling to the full corpus. Those records are **selection metadata only**: they contain pinned pre-fix/fix revisions, prompts, reproducers, oracles and boundary notes, but no baseline/ShowMeWhy measurements.
+
+A pilot task becomes scoreable only after its pre-fix reproducer and accepted-fix oracle have been independently reproduced in our environment, paired runs have been captured under the same execution context, and blinded ground truth has been labelled/adjudicated.
+
 ## Running the scorer
 
 ```bash
