@@ -60,17 +60,39 @@ def _write_result(path: Path, result: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def _setup(command: str | None, *, cwd: Path) -> dict[str, Any]:
+    if not command:
+        return {"status": "skipped", "return_code": 0, "output_tail": ""}
+    started = time.monotonic()
+    process = _run(command, cwd=cwd, shell=True, check=False)
+    result = {
+        "status": "pass" if process.returncode == 0 else "failure",
+        "return_code": process.returncode,
+        "seconds": round(time.monotonic() - started, 3),
+        "output_tail": process.stdout[-8000:],
+    }
+    if process.returncode != 0:
+        raise OracleValidationError(
+            f"subject setup failed ({process.returncode}): {command}\n{process.stdout[-8000:]}"
+        )
+    return result
+
+
 def validate_oracle(
     *,
     manifest_path: Path,
     task_id: str,
     workspace: Path,
     result_path: Path,
+    setup_command: str | None = None,
 ) -> dict[str, Any]:
     task = _load_task(manifest_path, task_id)
     workspace = workspace.resolve()
+    result_path = result_path.resolve()
     if not (workspace / ".git").exists():
         raise OracleValidationError(f"workspace is not a git checkout: {workspace}")
+    if result_path.is_relative_to(workspace):
+        raise OracleValidationError("result path must live outside the subject checkout")
 
     base = task["pre_fix_revision"]
     accepted = task["accepted_fix_revision"]
@@ -80,8 +102,13 @@ def validate_oracle(
 
     _run(["git", "fetch", "origin", base, accepted], cwd=workspace)
     pull_ref = f"refs/pull/{pr_number}/head"
-    _run(["git", "fetch", "origin", f"{pull_ref}:refs/remotes/origin/showmewhy-pilot-head"], cwd=workspace)
-    pr_head = _run(["git", "rev-parse", "refs/remotes/origin/showmewhy-pilot-head"], cwd=workspace).stdout.strip()
+    _run(
+        ["git", "fetch", "origin", f"{pull_ref}:refs/remotes/origin/showmewhy-pilot-head"],
+        cwd=workspace,
+    )
+    pr_head = _run(
+        ["git", "rev-parse", "refs/remotes/origin/showmewhy-pilot-head"], cwd=workspace
+    ).stdout.strip()
 
     patch = _run(
         ["git", "diff", "--binary", base, pr_head, "--", *test_paths],
@@ -105,7 +132,10 @@ def validate_oracle(
         "test_patch_sha256": patch_sha256,
         "test_paths": test_paths,
         "reproducer_command": command,
+        "setup_command": setup_command,
+        "pre_fix_setup": {"status": "not_run"},
         "pre_fix": {"status": "not_run"},
+        "accepted_fix_setup": {"status": "not_run"},
         "accepted_fix": {"status": "not_run"},
         "oracle_validated": False,
     }
@@ -116,6 +146,8 @@ def validate_oracle(
     _run(["git", "checkout", "--detach", base], cwd=workspace)
     _run(["git", "apply", "--check", str(patch_path)], cwd=workspace)
     _run(["git", "apply", str(patch_path)], cwd=workspace)
+    result["pre_fix_setup"] = _setup(setup_command, cwd=workspace)
+    _write_result(result_path, result)
 
     started = time.monotonic()
     pre = _run(command, cwd=workspace, shell=True, check=False)
@@ -135,6 +167,8 @@ def validate_oracle(
     _run(["git", "reset", "--hard"], cwd=workspace)
     _run(["git", "clean", "-fdx"], cwd=workspace)
     _run(["git", "checkout", "--detach", accepted], cwd=workspace)
+    result["accepted_fix_setup"] = _setup(setup_command, cwd=workspace)
+    _write_result(result_path, result)
 
     started = time.monotonic()
     fixed = _run(command, cwd=workspace, shell=True, check=False)
@@ -163,6 +197,10 @@ def main() -> None:
     parser.add_argument("--task-id", required=True)
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--result", type=Path, required=True)
+    parser.add_argument(
+        "--setup-command",
+        help="Optional subject setup/install command run after both the pre-fix and accepted-fix checkouts.",
+    )
     args = parser.parse_args()
 
     try:
@@ -171,6 +209,7 @@ def main() -> None:
             task_id=args.task_id,
             workspace=args.workspace,
             result_path=args.result,
+            setup_command=args.setup_command,
         )
     except OracleValidationError as exc:
         print(f"oracle validation failed: {exc}", file=sys.stderr)
