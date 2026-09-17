@@ -1,0 +1,132 @@
+name: V5 pilot oracle validation
+
+on:
+  pull_request:
+    paths:
+      - "evals/v5/pilot/**"
+      - ".github/workflows/v5-pilot-oracle.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-oracles:
+    name: Oracle ${{ matrix.task_id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - task_id: pytest-monkeypatch-inherited-state
+            repository: pytest-dev/pytest
+            base: 51e9a9f148cd2509a31e3fa0d2b1b3204c2b0dd7
+            setup: python -m pip install -e . hypothesis
+          - task_id: pydantic-validation-schema-alias
+            repository: pydantic/pydantic
+            base: d4e72faf5749257cd7feeb27bc7ca56c423942b6
+            setup: python -m pip install -e . pytest dirty-equals jsonschema
+          - task_id: pytest-warning-module-attribution
+            repository: pytest-dev/pytest
+            base: f1211ba21d1df2f55cf2ba1523b9d7b6c6a9ef56
+            setup: python -m pip install -e . hypothesis
+          - task_id: fastapi-sse-line-splitting
+            repository: fastapi/fastapi
+            base: 31ce3cb8d73a6e20221315a90dd98a117f0101a0
+            setup: python -m pip install -e . pytest httpx inline-snapshot
+          - task_id: fastapi-stream-status-code
+            repository: fastapi/fastapi
+            base: b1346bb142c8154950953255eea535e5a83d62eb
+            setup: python -m pip install -e . pytest httpx inline-snapshot
+
+    steps:
+      - name: Checkout ShowMeWhy
+        uses: actions/checkout@v4
+        with:
+          path: showmewhy
+
+      - name: Checkout upstream subject
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.base }}
+          fetch-depth: 0
+          path: subject
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Validate pre-fix failure and accepted-fix pass
+        run: |
+          mkdir -p "$RUNNER_TEMP/v5-oracle"
+          python showmewhy/evals/v5/pilot/oracle_runner.py \
+            --manifest showmewhy/evals/v5/pilot/manifest.json \
+            --task-id "${{ matrix.task_id }}" \
+            --workspace subject \
+            --result "$RUNNER_TEMP/v5-oracle/${{ matrix.task_id }}.json" \
+            --setup-command "${{ matrix.setup }}"
+
+      - name: Upload oracle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v5-oracle-${{ matrix.task_id }}
+          path: ${{ runner.temp }}/v5-oracle/${{ matrix.task_id }}*
+          if-no-files-found: warn
+
+  ruff-oracle:
+    name: Oracle ruff-sim117-mixed-sync-async
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout ShowMeWhy
+        uses: actions/checkout@v4
+        with:
+          path: showmewhy
+
+      - name: Checkout Ruff pre-fix subject
+        uses: actions/checkout@v4
+        with:
+          repository: astral-sh/ruff
+          ref: 3a8fb30e6fa89b1b334aa77625c364000d602cc5
+          fetch-depth: 0
+          path: subject
+
+      - name: Set up Python for oracle runner
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: subject
+          shared-key: showmewhy-v5-ruff-oracle
+
+      - name: Validate pre-fix failure and accepted-fix pass
+        run: |
+          mkdir -p "$RUNNER_TEMP/v5-oracle"
+          python showmewhy/evals/v5/pilot/oracle_runner.py \
+            --manifest showmewhy/evals/v5/pilot/manifest.json \
+            --task-id ruff-sim117-mixed-sync-async \
+            --workspace subject \
+            --result "$RUNNER_TEMP/v5-oracle/ruff-sim117-mixed-sync-async.json"
+
+      - name: Upload oracle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v5-oracle-ruff-sim117-mixed-sync-async
+          path: ${{ runner.temp }}/v5-oracle/ruff-sim117-mixed-sync-async*
+          if-no-files-found: warn
