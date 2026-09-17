@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schemas/v5-verification-benchmark.json",
+  "title": "ShowMeWhy V5 paired verification benchmark corpus",
+  "type": "object",
+  "required": ["tasks"],
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/task"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "idList": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "cost": {
+      "type": "object",
+      "required": ["inspection_tokens", "inspection_lines", "verification_seconds"],
+      "properties": {
+        "inspection_tokens": {"type": "number", "minimum": 0},
+        "inspection_lines": {"type": "number", "minimum": 0},
+        "verification_seconds": {"type": "number", "minimum": 0}
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["task_id", "domain", "ground_truth", "baseline", "showmewhy"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "domain": {"type": "string", "minLength": 1},
+        "ground_truth": {
+          "type": "object",
+          "required": ["material_claim_ids", "failing_claim_ids", "human_review_claim_ids", "counterexample_ids"],
+          "properties": {
+            "material_claim_ids": {"$ref": "#/$defs/idList"},
+            "failing_claim_ids": {"$ref": "#/$defs/idList"},
+            "human_review_claim_ids": {"$ref": "#/$defs/idList"},
+            "counterexample_ids": {"$ref": "#/$defs/idList"}
+          },
+          "additionalProperties": false
+        },
+        "baseline": {
+          "allOf": [
+            {"$ref": "#/$defs/cost"},
+            {
+              "type": "object",
+              "required": ["inspected_claim_ids"],
+              "properties": {"inspected_claim_ids": {"$ref": "#/$defs/idList"}}
+            }
+          ]
+        },
+        "showmewhy": {
+          "allOf": [
+            {"$ref": "#/$defs/cost"},
+            {
+              "type": "object",
+              "required": ["surfaced_claim_ids", "verified_claim_ids", "refuted_claim_ids", "open_claim_ids", "detected_failure_ids", "detected_counterexample_ids"],
+              "properties": {
+                "surfaced_claim_ids": {"$ref": "#/$defs/idList"},
+                "verified_claim_ids": {"$ref": "#/$defs/idList"},
+                "refuted_claim_ids": {"$ref": "#/$defs/idList"},
+                "open_claim_ids": {"$ref": "#/$defs/idList"},
+                "detected_failure_ids": {"$ref": "#/$defs/idList"},
+                "detected_counterexample_ids": {"$ref": "#/$defs/idList"}
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
