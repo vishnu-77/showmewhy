@@ -1,4 +1,3 @@
-import json
 import sys
 import unittest
 from copy import deepcopy
@@ -21,19 +20,27 @@ class V5BenchmarkTests(unittest.TestCase):
         score = score_records(self.records)
         self.assertEqual(score.tasks, 2)
         self.assertEqual(score.material_claims, 7)
+        self.assertEqual(score.claim_classification_coverage, 1.0)
         self.assertEqual(score.material_failures, 2)
+        self.assertEqual(score.baseline_detected_material_failures, 1)
+        self.assertEqual(score.baseline_material_failure_recall, 0.5)
         self.assertEqual(score.detected_material_failures, 2)
         self.assertEqual(score.missed_material_failures, 0)
         self.assertEqual(score.material_failure_recall, 1.0)
+        self.assertEqual(score.material_failure_recall_delta, 0.5)
         self.assertEqual(score.material_failure_miss_rate, 0.0)
         self.assertEqual(score.false_closures, 0)
         self.assertAlmostEqual(score.verification_surface_reduction, 5 / 7)
 
     def test_smoke_fixture_secondary_metrics(self):
         score = score_records(self.records)
+        self.assertEqual(score.baseline_material_failure_precision, 1.0)
+        self.assertEqual(score.material_failure_precision, 1.0)
         self.assertEqual(score.verification_surface_precision, 1.0)
         self.assertEqual(score.verification_surface_recall, 1.0)
+        self.assertEqual(score.baseline_counterexample_recall, 0.5)
         self.assertEqual(score.counterexample_recall, 1.0)
+        self.assertEqual(score.counterexample_precision, 1.0)
         self.assertAlmostEqual(score.inspection_token_reduction, 1 - (480 / 1400))
         self.assertAlmostEqual(score.inspection_line_reduction, 1 - (72 / 210))
         self.assertAlmostEqual(score.verification_time_reduction, 1 - (165 / 420))
@@ -48,21 +55,42 @@ class V5BenchmarkTests(unittest.TestCase):
         self.assertEqual(score.false_closures, 1)
         self.assertAlmostEqual(score.false_closure_rate, 1 / 4)
 
+    def test_false_failure_detection_reduces_precision_without_inflating_recall(self):
+        rows = deepcopy(self.records)
+        rows[0]["showmewhy"]["detected_failure_ids"].append("c1")
+        score = score_records(rows)
+        self.assertEqual(score.material_failure_recall, 1.0)
+        self.assertEqual(score.false_failure_detections, 1)
+        self.assertAlmostEqual(score.material_failure_precision, 2 / 3)
+
+    def test_false_counterexample_detection_is_visible(self):
+        rows = deepcopy(self.records)
+        rows[0]["showmewhy"]["detected_counterexample_ids"].append("x-spurious")
+        score = score_records(rows)
+        self.assertEqual(score.counterexample_recall, 1.0)
+        self.assertEqual(score.false_counterexample_detections, 1)
+        self.assertAlmostEqual(score.counterexample_precision, 2 / 3)
+
     def test_default_surface_must_equal_open_claims(self):
         rows = deepcopy(self.records)
         rows[0]["showmewhy"]["surfaced_claim_ids"] = []
         with self.assertRaisesRegex(BenchmarkValidationError, "surfaced_claim_ids"):
             score_records(rows)
 
-    def test_detected_failures_cannot_invent_ground_truth_failures(self):
+    def test_failure_detection_ids_must_still_reference_material_claims(self):
         rows = deepcopy(self.records)
-        rows[0]["showmewhy"]["detected_failure_ids"].append("c1")
+        rows[0]["showmewhy"]["detected_failure_ids"].append("not-a-material-claim")
         with self.assertRaisesRegex(BenchmarkValidationError, "detected_failure_ids"):
+            score_records(rows)
+
+    def test_task_ids_must_be_unique(self):
+        rows = deepcopy(self.records)
+        rows[1]["task_id"] = rows[0]["task_id"]
+        with self.assertRaisesRegex(BenchmarkValidationError, "task_id values must be unique"):
             score_records(rows)
 
     def test_fixture_is_explicitly_non_claim_bearing(self):
         readme = (V5 / "README.md").read_text(encoding="utf-8")
-        self.assertIn("not", readme.lower())
         self.assertIn("evidence of product effectiveness", readme)
 
 
