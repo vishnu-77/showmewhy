@@ -23,16 +23,16 @@
       "accepted_fix_revision": "472b4de93d83c118e0d089a34918fd1210d9ebc8",
       "production_paths": ["src/_pytest/monkeypatch.py"],
       "upstream_test_paths": ["testing/test_monkeypatch.py"],
-      "task_prompt": "Investigate and fix pytest MonkeyPatch.setattr()/undo() so patching an inherited instance attribute restores the target to its original state. Preserve correct behaviour for inherited non-data descriptors, methods, direct instance attributes, properties/data descriptors, slots, and custom attribute-assignment machinery. Add focused regression coverage and explain any boundary conditions you rely on.",
-      "task_prompt_sha256": "811eb434a90b3c21b4f42b13e2902162f418163209436fba953918348528d954",
-      "reproducer_command": "python -m pytest testing/test_monkeypatch.py",
+      "task_prompt": "Investigate and fix pytest MonkeyPatch.setattr()/undo() so patching an inherited instance attribute restores the target to its original state. Preserve correct behaviour for inherited non-data descriptors, methods, direct instance attributes, properties/data descriptors, and slots. Inspect custom attribute-assignment machinery as an explicit boundary and surface any limitation rather than assuming ordinary __dict__ storage. Add focused regression coverage.",
+      "task_prompt_sha256": "b0ed0a189203d513fc032b3f5e235f2e9561e81607cba8e6a7f65ff1553f58af",
+      "reproducer_command": "python -m pytest testing/test_monkeypatch.py -k 'undo_inherited_attribute_on_instance or undo_inherited_non_data_descriptor_on_instance or undo_inherited_method_on_instance or undo_own_attribute_on_instance or undo_data_descriptor_on_instance or undo_slot_attribute_on_instance'",
       "expected_pre_fix": "Undoing a patch to an inherited instance attribute can leave a new instance __dict__ entry; an inherited non-data descriptor can become shadowed/frozen.",
-      "expected_post_fix": "Undo restores the original lookup/storage semantics without leaving an inherited value behind on the instance, while direct instance values, data descriptors, slots, and custom assignment machinery remain correct.",
+      "expected_post_fix": "The accepted regression cases restore ordinary inherited lookup/storage semantics without leaving inherited values on the instance, while direct instance values, data descriptors and slots retain their expected behaviour. Custom attribute-assignment machinery remains a scrutiny boundary rather than an assumed guarantee.",
       "oracle_refs": [
         "https://github.com/pytest-dev/pytest/pull/14969",
         "https://github.com/pytest-dev/pytest/blob/472b4de93d83c118e0d089a34918fd1210d9ebc8/testing/test_monkeypatch.py"
       ],
-      "boundary_notes": "Review identified custom __setattr__ / proxy-backed storage as a regression boundary for an early approach; the pilot should treat that as a required scrutiny case rather than only checking the happy-path inherited attribute.",
+      "boundary_notes": "Review explicitly identified custom __setattr__ / proxy-backed storage as a regression risk for the proposed storage model before a later approval. The merged regression patch does not add a dedicated custom-__setattr__ test, so V5 must surface this as a boundary instead of claiming the upstream oracle proves it safe.",
       "selection_status": "selected_unexecuted",
       "execution_status": "not_run"
     },
