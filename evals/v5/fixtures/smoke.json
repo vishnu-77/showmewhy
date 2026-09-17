@@ -3,11 +3,25 @@
     {
       "task_id": "smoke-code-auth",
       "domain": "code",
+      "pairing": {
+        "pair_id": "pair-smoke-code-auth-0",
+        "repository": "fixture://showmewhy/smoke-code-auth",
+        "revision": "fixture-rev-1",
+        "task_prompt_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "model": "synthetic-test-model",
+        "agent_runtime": "synthetic-test-runtime",
+        "tool_profile": "fixture-tools-v1",
+        "repeat_index": 0
+      },
       "ground_truth": {
         "material_claim_ids": ["c1", "c2", "c3", "c4"],
         "failing_claim_ids": ["c2"],
         "human_review_claim_ids": ["c3"],
-        "counterexample_ids": ["x1"]
+        "counterexample_ids": ["x1"],
+        "oracle_refs": ["fixture://oracle/code-auth"],
+        "labeler_count": 2,
+        "adjudicated": true,
+        "blinded_to_showmewhy": true
       },
       "baseline": {
         "inspected_claim_ids": ["c1", "c2", "c3", "c4"],
@@ -32,11 +46,25 @@
     {
       "task_id": "smoke-infra-boundary",
       "domain": "infrastructure",
+      "pairing": {
+        "pair_id": "pair-smoke-infra-boundary-0",
+        "repository": "fixture://showmewhy/smoke-infra-boundary",
+        "revision": "fixture-rev-1",
+        "task_prompt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "model": "synthetic-test-model",
+        "agent_runtime": "synthetic-test-runtime",
+        "tool_profile": "fixture-tools-v1",
+        "repeat_index": 0
+      },
       "ground_truth": {
         "material_claim_ids": ["i1", "i2", "i3"],
         "failing_claim_ids": ["i2"],
         "human_review_claim_ids": ["i3"],
-        "counterexample_ids": ["ix1"]
+        "counterexample_ids": ["ix1"],
+        "oracle_refs": ["fixture://oracle/infra-boundary"],
+        "labeler_count": 2,
+        "adjudicated": true,
+        "blinded_to_showmewhy": true
       },
       "baseline": {
         "inspected_claim_ids": ["i1", "i2", "i3"],
