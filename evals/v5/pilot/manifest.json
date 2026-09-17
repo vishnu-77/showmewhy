@@ -1,0 +1,172 @@
+{
+  "version": "v5-pilot-1",
+  "purpose": "Validate the V5 paired-execution and ground-truth protocol on six distinct verification shapes before scaling to the full 30-50 task corpus.",
+  "claim_bearing": false,
+  "execution_state": "selection_only",
+  "selection_rules": [
+    "Upstream fix must be merged into the canonical repository.",
+    "The pre-fix revision must be pinned to the pull request base SHA.",
+    "The accepted fix must include a narrow regression witness or equivalent deterministic oracle.",
+    "The task must expose a materially different verification shape from the other pilot tasks.",
+    "No pilot selection record is treated as a ShowMeWhy benchmark result until paired baseline and ShowMeWhy runs are executed and independently labelled."
+  ],
+  "tasks": [
+    {
+      "task_id": "pytest-monkeypatch-inherited-state",
+      "domain": "code",
+      "verification_shape": "state-restoration-and-descriptor-boundary",
+      "repository": "pytest-dev/pytest",
+      "pr_number": 14969,
+      "pr_url": "https://github.com/pytest-dev/pytest/pull/14969",
+      "issue_refs": ["https://github.com/pytest-dev/pytest/issues/10644"],
+      "pre_fix_revision": "51e9a9f148cd2509a31e3fa0d2b1b3204c2b0dd7",
+      "accepted_fix_revision": "472b4de93d83c118e0d089a34918fd1210d9ebc8",
+      "production_paths": ["src/_pytest/monkeypatch.py"],
+      "upstream_test_paths": ["testing/test_monkeypatch.py"],
+      "task_prompt": "Investigate and fix pytest MonkeyPatch.setattr()/undo() so patching an inherited instance attribute restores the target to its original state. Preserve correct behaviour for inherited non-data descriptors, methods, direct instance attributes, properties/data descriptors, slots, and custom attribute-assignment machinery. Add focused regression coverage and explain any boundary conditions you rely on.",
+      "task_prompt_sha256": "811eb434a90b3c21b4f42b13e2902162f418163209436fba953918348528d954",
+      "reproducer_command": "python -m pytest testing/test_monkeypatch.py",
+      "expected_pre_fix": "Undoing a patch to an inherited instance attribute can leave a new instance __dict__ entry; an inherited non-data descriptor can become shadowed/frozen.",
+      "expected_post_fix": "Undo restores the original lookup/storage semantics without leaving an inherited value behind on the instance, while direct instance values, data descriptors, slots, and custom assignment machinery remain correct.",
+      "oracle_refs": [
+        "https://github.com/pytest-dev/pytest/pull/14969",
+        "https://github.com/pytest-dev/pytest/blob/472b4de93d83c118e0d089a34918fd1210d9ebc8/testing/test_monkeypatch.py"
+      ],
+      "boundary_notes": "Review identified custom __setattr__ / proxy-backed storage as a regression boundary for an early approach; the pilot should treat that as a required scrutiny case rather than only checking the happy-path inherited attribute.",
+      "selection_status": "selected_unexecuted",
+      "execution_status": "not_run"
+    },
+    {
+      "task_id": "pydantic-validation-schema-alias",
+      "domain": "code-contract",
+      "verification_shape": "schema-runtime-semantic-consistency",
+      "repository": "pydantic/pydantic",
+      "pr_number": 13717,
+      "pr_url": "https://github.com/pydantic/pydantic/pull/13717",
+      "issue_refs": ["https://github.com/pydantic/pydantic/issues/13716"],
+      "pre_fix_revision": "d4e72faf5749257cd7feeb27bc7ca56c423942b6",
+      "accepted_fix_revision": "22b6bcecdd2be748ff2567e4e83a853be84554e2",
+      "production_paths": ["pydantic/json_schema.py"],
+      "upstream_test_paths": ["tests/test_json_schema.py"],
+      "task_prompt": "Investigate a mismatch between Pydantic validation behaviour and generated validation JSON Schema when a field has an alias but validate_by_alias=False. Make the validation schema describe keys the model actually accepts, preserve serialization behaviour, and verify nested model configuration remains correctly scoped. Add focused regression coverage.",
+      "task_prompt_sha256": "197a2f5f99764837a290fd9f1620abdbb9a39cfcabed942b02b751d74898214b",
+      "reproducer_command": "python -m pytest tests/test_json_schema.py -k validate_by_alias_false",
+      "expected_pre_fix": "The validation JSON Schema exposes the alias even though validation with validate_by_alias=False rejects that alias and accepts the field name.",
+      "expected_post_fix": "Validation schema keys match accepted validation inputs, serialization schema behaviour remains unchanged, and nested model configuration stays locally scoped.",
+      "oracle_refs": [
+        "https://github.com/pydantic/pydantic/pull/13717",
+        "https://github.com/pydantic/pydantic/blob/22b6bcecdd2be748ff2567e4e83a853be84554e2/tests/test_json_schema.py"
+      ],
+      "boundary_notes": "Serialization alias behaviour is intentionally out of scope because changing serialize_by_alias default semantics would be a broader compatibility decision; the pilot must not incorrectly claim that asymmetry was fixed.",
+      "selection_status": "selected_unexecuted",
+      "execution_status": "not_run"
+    },
+    {
+      "task_id": "pytest-warning-module-attribution",
+      "domain": "code",
+      "verification_shape": "provenance-and-attribution-correctness",
+      "repository": "pytest-dev/pytest",
+      "pr_number": 14747,
+      "pr_url": "https://github.com/pytest-dev/pytest/pull/14747",
+      "issue_refs": [
+        "https://github.com/pytest-dev/pytest/issues/11933",
+        "https://github.com/pytest-dev/pytest/issues/12897"
+      ],
+      "pre_fix_revision": "f1211ba21d1df2f55cf2ba1523b9d7b6c6a9ef56",
+      "accepted_fix_revision": "1c36631c68427619646d9f12904cc513e48d472b",
+      "production_paths": ["src/_pytest/recwarn.py"],
+      "upstream_test_paths": ["testing/test_recwarn.py"],
+      "task_prompt": "Investigate pytest.warns handling of unmatched warnings when module-based warning filters are active. Reproduced warnings must be attributed consistently with their original location rather than spuriously matching the warnings module. Add a regression test that distinguishes the incorrect attribution from the intended behaviour.",
+      "task_prompt_sha256": "2c3af3d09b0391f6707015ab806436671d90489976f07d98169eb6892186af67",
+      "reproducer_command": "python -m pytest testing/test_recwarn.py -k re_emit_filename_derived_module",
+      "expected_pre_fix": "An unmatched warning re-emitted by pytest.warns is attributed to module 'warnings', causing module filters to match the wrong warning source.",
+      "expected_post_fix": "Re-emitted warning attribution is derived from its filename/location, so a filter targeting module 'warnings' does not spuriously swallow it and a filter targeting the originating location can match it.",
+      "oracle_refs": [
+        "https://github.com/pytest-dev/pytest/pull/14747",
+        "https://github.com/pytest-dev/pytest/blob/1c36631c68427619646d9f12904cc513e48d472b/testing/test_recwarn.py"
+      ],
+      "boundary_notes": "warnings.WarningMessage does not retain the original explicit module string, so the accepted behaviour derives attribution from filename rather than claiming perfect reconstruction of unavailable provenance.",
+      "selection_status": "selected_unexecuted",
+      "execution_status": "not_run"
+    },
+    {
+      "task_id": "fastapi-sse-line-splitting",
+      "domain": "protocol",
+      "verification_shape": "protocol-parser-boundary-and-counterexample",
+      "repository": "fastapi/fastapi",
+      "pr_number": 15515,
+      "pr_url": "https://github.com/fastapi/fastapi/pull/15515",
+      "issue_refs": ["https://github.com/fastapi/fastapi/issues/15500"],
+      "pre_fix_revision": "31ce3cb8d73a6e20221315a90dd98a117f0101a0",
+      "accepted_fix_revision": "0f3e7bd682a81488919227f2b5f1f7de1718ecdd",
+      "production_paths": ["fastapi/sse.py"],
+      "upstream_test_paths": ["tests/test_sse.py"],
+      "task_prompt": "Investigate FastAPI SSE event formatting for payloads containing trailing newlines, CRLF/lone CR line endings, and Unicode characters that Python str.splitlines() treats as separators but the SSE protocol does not. Make formatting comply with SSE line-termination semantics and add boundary-focused regression tests for data and comments.",
+      "task_prompt_sha256": "0f26db1b35afddaf1456372a9c63f92b76a30b20dca4e0e6abe0cc496acfc2d8",
+      "reproducer_command": "python -m pytest tests/test_sse.py",
+      "expected_pre_fix": "SSE formatting drops trailing empty data/comment lines and incorrectly splits payloads on non-SSE Unicode/control line separators accepted by Python str.splitlines().",
+      "expected_post_fix": "Only SSE-defined line terminators (LF, CRLF, CR) split event data/comments, trailing empty lines are preserved, and unrelated Unicode/control separators remain payload content.",
+      "oracle_refs": [
+        "https://github.com/fastapi/fastapi/pull/15515",
+        "https://github.com/fastapi/fastapi/blob/0f3e7bd682a81488919227f2b5f1f7de1718ecdd/tests/test_sse.py",
+        "https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream"
+      ],
+      "boundary_notes": "The discriminating counterexamples are trailing newlines plus U+2028 and vertical-tab payloads: a naive splitlines-based implementation can appear correct on ordinary LF input while still violating the SSE grammar.",
+      "selection_status": "selected_unexecuted",
+      "execution_status": "not_run"
+    },
+    {
+      "task_id": "fastapi-stream-status-code",
+      "domain": "runtime-contract",
+      "verification_shape": "runtime-generated-spec-consistency-with-control",
+      "repository": "fastapi/fastapi",
+      "pr_number": 15937,
+      "pr_url": "https://github.com/fastapi/fastapi/pull/15937",
+      "issue_refs": [],
+      "pre_fix_revision": "b1346bb142c8154950953255eea535e5a83d62eb",
+      "accepted_fix_revision": "e92a0dc3ce5ecbebb8655dbe5465cb61d48f9fc0",
+      "production_paths": ["fastapi/routing.py"],
+      "upstream_test_paths": ["tests/test_stream_status_code.py"],
+      "task_prompt": "Investigate FastAPI SSE and JSONL streaming endpoints that return HTTP 200 even when the route declares another status code or a dependency sets Response.status_code, while generated OpenAPI describes the declared response. Align runtime streaming behaviour with the existing response-status semantics without changing the default 200 case, and add control and OpenAPI consistency tests.",
+      "task_prompt_sha256": "e1145a4157e4f3f5e8984380ec311896262c9216ad6de1754ebb40e2e3318b97",
+      "reproducer_command": "python -m pytest tests/test_stream_status_code.py",
+      "expected_pre_fix": "SSE/JSONL streaming endpoints return 200 despite a declared or dependency-set status code, while OpenAPI can document the non-200 code.",
+      "expected_post_fix": "SSE/JSONL streaming honours declared and dependency-set status codes consistently with raw StreamingResponse, default behaviour remains 200, and generated OpenAPI stays aligned with runtime semantics.",
+      "oracle_refs": [
+        "https://github.com/fastapi/fastapi/pull/15937",
+        "https://github.com/fastapi/fastapi/blob/e92a0dc3ce5ecbebb8655dbe5465cb61d48f9fc0/tests/test_stream_status_code.py"
+      ],
+      "boundary_notes": "Raw StreamingResponse is the existing control path and the default-200 case is a non-regression obligation; a fix that only changes documentation or only declared route codes is insufficient.",
+      "selection_status": "selected_unexecuted",
+      "execution_status": "not_run"
+    },
+    {
+      "task_id": "ruff-sim117-mixed-sync-async",
+      "domain": "static-analysis",
+      "verification_shape": "false-negative-boundary-and-fix-safety",
+      "repository": "astral-sh/ruff",
+      "pr_number": 27821,
+      "pr_url": "https://github.com/astral-sh/ruff/pull/27821",
+      "issue_refs": ["https://github.com/astral-sh/ruff/issues/27800"],
+      "pre_fix_revision": "3a8fb30e6fa89b1b334aa77625c364000d602cc5",
+      "accepted_fix_revision": "a94bcd1b83924c3f6c2d42ef042ea05e14c7662d",
+      "production_paths": ["crates/ruff_linter/src/rules/flake8_simplify/rules/ast_with.rs"],
+      "upstream_test_paths": [
+        "crates/ruff_linter/resources/test/fixtures/flake8_simplify/SIM117.py",
+        "crates/ruff_linter/src/rules/flake8_simplify/snapshots/ruff_linter__rules__flake8_simplify__tests__multiple-with-statements_SIM117.py.snap"
+      ],
+      "task_prompt": "Investigate Ruff SIM117 false negatives for nested with statements when a combinable nested pair sits below an incompatible sync/async parent or an exempt context manager. Preserve top-to-bottom fixing for genuinely combinable parents, avoid invalid sync/async combinations, and add regression cases covering the relevant boundaries.",
+      "task_prompt_sha256": "92ca8f2bbde2c4deae9ce3188bd2d7f3bc89fd617cf3149eff1ba71bc930fd14",
+      "reproducer_command": "cargo test -p ruff_linter --lib multiplewithstatements",
+      "expected_pre_fix": "SIM117 can suppress a valid nested-with diagnostic merely because a single-statement parent exists, even when parent/current cannot be combined due to sync/async mismatch or an exemption boundary.",
+      "expected_post_fix": "Parent deferral occurs only when parent/current are genuinely combinable; valid nested pairs beneath incompatible boundaries are detected without proposing invalid cross-sync/async combinations.",
+      "oracle_refs": [
+        "https://github.com/astral-sh/ruff/pull/27821",
+        "https://github.com/astral-sh/ruff/blob/a94bcd1b83924c3f6c2d42ef042ea05e14c7662d/crates/ruff_linter/resources/test/fixtures/flake8_simplify/SIM117.py"
+      ],
+      "boundary_notes": "The accepted PR's ecosystem run surfaced additional real-project SIM117 findings, but the pilot oracle is the deterministic regression fixture/snapshot; ecosystem impact is supporting evidence, not the ground-truth label itself.",
+      "selection_status": "selected_unexecuted",
+      "execution_status": "not_run"
+    }
+  ]
+}
