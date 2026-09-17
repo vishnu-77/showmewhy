@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" role="img" aria-labelledby="title desc">
+  <title id="title">ShowMeWhy turns noisy agent output into a verification surface</title>
+  <desc id="desc">Evidence fragments arrange themselves into RESULT, NEEDS YOU and DO NEXT.</desc>
+  <style>
+    :root { color-scheme: light dark; }
+    .bg { fill:#F7F7F4; }
+    .ink { fill:#0A0A0A; }
+    .muted { fill:#666; }
+    .rule { stroke:#D8D8D2; stroke-width:2; }
+    .tokenbox { fill:#F7F7F4; stroke:#D8D8D2; }
+    .token { font: 23px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .label { font: 700 18px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing:.4px; }
+    .body { font: 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .headline { font: 700 28px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .result { font: 26px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .divider, .receipt { opacity:0; animation: reveal 5.2s ease-in-out infinite; }
+    .t1 { animation: a1 5.2s ease-in-out infinite; }
+    .t2 { animation: a2 5.2s ease-in-out infinite; }
+    .t3 { animation: a3 5.2s ease-in-out infinite; }
+    .t4 { animation: a4 5.2s ease-in-out infinite; }
+    .t5 { animation: a5 5.2s ease-in-out infinite; }
+    .t6 { animation: a6 5.2s ease-in-out infinite; }
+    .t7 { animation: a7 5.2s ease-in-out infinite; }
+    .t8 { animation: a8 5.2s ease-in-out infinite; }
+    @keyframes reveal { 0%,31%{opacity:0} 50%,88%{opacity:1} 100%{opacity:0} }
+    @keyframes a1 { 0%,18%{transform:translate(8px,-4px)} 52%,88%{transform:translate(0,0)} 100%{transform:translate(8px,-4px)} }
+    @keyframes a2 { 0%,18%{transform:translate(610px,-16px)} 52%,88%{transform:translate(0,39px)} 100%{transform:translate(610px,-16px)} }
+    @keyframes a3 { 0%,18%{transform:translate(344px,13px)} 52%,88%{transform:translate(0,78px)} 100%{transform:translate(344px,13px)} }
+    @keyframes a4 { 0%,18%{transform:translate(624px,98px)} 52%,88%{transform:translate(0,117px)} 100%{transform:translate(624px,98px)} }
+    @keyframes a5 { 0%,18%{transform:translate(28px,198px)} 52%,88%{transform:translate(0,156px)} 100%{transform:translate(28px,198px)} }
+    @keyframes a6 { 0%,18%{transform:translate(434px,208px)} 52%,88%{transform:translate(0,195px)} 100%{transform:translate(434px,208px)} }
+    @keyframes a7 { 0%,18%{transform:translate(214px,93px)} 52%,88%{transform:translate(0,234px)} 100%{transform:translate(214px,93px)} }
+    @keyframes a8 { 0%,18%{transform:translate(594px,228px)} 52%,88%{transform:translate(0,273px)} 100%{transform:translate(594px,228px)} }
+    @media (prefers-color-scheme: dark) {
+      .bg,.tokenbox { fill:#0D1218; }
+      .ink { fill:#F7F7F4; }
+      .muted { fill:#A4A7AA; }
+      .rule,.tokenbox { stroke:#30363D; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .divider,.receipt { opacity:1; animation:none; }
+      .t1,.t2,.t3,.t4,.t5,.t6,.t7,.t8 { animation:none; }
+      .t2 { transform:translate(0,39px) } .t3 { transform:translate(0,78px) }
+      .t4 { transform:translate(0,117px) } .t5 { transform:translate(0,156px) }
+      .t6 { transform:translate(0,195px) } .t7 { transform:translate(0,234px) }
+      .t8 { transform:translate(0,273px) }
+    }
+  </style>
+  <rect class="bg" width="960" height="460"/>
+  <text class="ink headline" x="38" y="48">ShowMeWhy</text>
+  <text class="muted body" x="38" y="80">messy agent output → verification surface</text>
+  <line class="rule" x1="38" y1="96" x2="922" y2="96"/>
+
+  <g transform="translate(86 132)">
+    <g class="t1" transform="translate(8 -4)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="164" height="36"/><text class="ink token" y="-2">auth failed</text></g>
+    <g class="t2" transform="translate(610 -16)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="90" height="36"/><text class="ink token" y="-2">CI red</text></g>
+    <g class="t3" transform="translate(344 13)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="162" height="36"/><text class="ink token" y="-2">200 != 401</text></g>
+    <g class="t4" transform="translate(624 98)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="122" height="36"/><text class="ink token" y="-2">warning</text></g>
+    <g class="t5" transform="translate(28 198)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="76" height="36"/><text class="ink token" y="-2">logs</text></g>
+    <g class="t6" transform="translate(434 208)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="76" height="36"/><text class="ink token" y="-2">diff</text></g>
+    <g class="t7" transform="translate(214 93)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="88" height="36"/><text class="ink token" y="-2">tests</text></g>
+    <g class="t8" transform="translate(594 228)"><rect class="tokenbox" x="-10" y="-28" rx="4" width="132" height="36"/><text class="ink token" y="-2">evidence</text></g>
+  </g>
+
+  <line class="rule divider" opacity="1" x1="405" y1="116" x2="405" y2="430"/>
+  <g class="receipt" opacity="1">
+    <text class="muted label" x="455" y="138">RESULT</text>
+    <text class="ink result" x="455" y="176">Auth path is failing.</text>
+    <line class="rule" x1="455" y1="190" x2="900" y2="190"/>
+    <text class="muted label" x="455" y="226">NEEDS YOU</text>
+    <text class="ink body" x="455" y="260">Expected 401, observed 200.</text>
+    <text class="ink body" x="455" y="290">Pipeline log is the decisive witness.</text>
+    <line class="rule" x1="455" y1="312" x2="900" y2="312"/>
+    <text class="muted label" x="455" y="350">DO NEXT</text>
+    <text class="ink body" x="455" y="384">Run the expired-session regression.</text>
+  </g>
+</svg>
