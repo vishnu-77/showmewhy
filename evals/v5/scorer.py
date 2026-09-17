@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -35,14 +35,29 @@ def _reduction(current: float, baseline: float) -> float:
     return 1.0 - (current / baseline)
 
 
+def _keyed(task_id: str, ids: set[str]) -> set[tuple[str, str]]:
+    return {(task_id, item_id) for item_id in ids}
+
+
 @dataclass(frozen=True)
 class AggregateScore:
     tasks: int
     material_claims: int
+    classified_material_claims: int
+    claim_classification_coverage: float
     material_failures: int
+    baseline_reported_failures: int
+    baseline_detected_material_failures: int
+    baseline_false_failure_detections: int
+    baseline_material_failure_recall: float
+    baseline_material_failure_precision: float
+    showmewhy_reported_failures: int
     detected_material_failures: int
+    false_failure_detections: int
     missed_material_failures: int
     material_failure_recall: float
+    material_failure_precision: float
+    material_failure_recall_delta: float
     material_failure_miss_rate: float
     verified_claims: int
     false_closures: int
@@ -54,8 +69,16 @@ class AggregateScore:
     verification_surface_recall: float
     verification_surface_reduction: float
     ground_truth_counterexamples: int
+    baseline_reported_counterexamples: int
+    baseline_detected_counterexamples: int
+    baseline_false_counterexample_detections: int
+    baseline_counterexample_recall: float
+    baseline_counterexample_precision: float
+    showmewhy_reported_counterexamples: int
     detected_counterexamples: int
+    false_counterexample_detections: int
     counterexample_recall: float
+    counterexample_precision: float
     inspection_token_reduction: float
     inspection_line_reduction: float
     verification_time_reduction: float
@@ -88,10 +111,14 @@ def validate_record(record: dict[str, Any]) -> None:
         raise BenchmarkValidationError("human_review_claim_ids must be a subset of material_claim_ids")
 
     baseline_inspected = _ids(baseline.get("inspected_claim_ids"), "baseline.inspected_claim_ids")
+    baseline_failures = _ids(baseline.get("detected_failure_ids"), "baseline.detected_failure_ids")
+    _ids(baseline.get("detected_counterexample_ids"), "baseline.detected_counterexample_ids")
     if not baseline_inspected:
         raise BenchmarkValidationError("baseline.inspected_claim_ids must not be empty")
     if not baseline_inspected <= material:
         raise BenchmarkValidationError("baseline.inspected_claim_ids must be a subset of material_claim_ids")
+    if not baseline_failures <= material:
+        raise BenchmarkValidationError("baseline.detected_failure_ids must be a subset of material_claim_ids")
     _number(baseline.get("inspection_tokens"), "baseline.inspection_tokens")
     _number(baseline.get("inspection_lines"), "baseline.inspection_lines")
     _number(baseline.get("verification_seconds"), "baseline.verification_seconds")
@@ -101,22 +128,18 @@ def validate_record(record: dict[str, Any]) -> None:
     refuted = _ids(smw.get("refuted_claim_ids"), "showmewhy.refuted_claim_ids")
     opened = _ids(smw.get("open_claim_ids"), "showmewhy.open_claim_ids")
     detected_failures = _ids(smw.get("detected_failure_ids"), "showmewhy.detected_failure_ids")
-    detected_counterexamples = _ids(smw.get("detected_counterexample_ids"), "showmewhy.detected_counterexample_ids")
+    _ids(smw.get("detected_counterexample_ids"), "showmewhy.detected_counterexample_ids")
 
     for field, ids in (("surfaced", surfaced), ("verified", verified), ("refuted", refuted), ("open", opened)):
         if not ids <= material:
             raise BenchmarkValidationError(f"showmewhy {field} claim ids must be a subset of material_claim_ids")
 
+    if not detected_failures <= material:
+        raise BenchmarkValidationError("showmewhy.detected_failure_ids must be a subset of material_claim_ids")
     if verified & refuted or verified & opened or refuted & opened:
         raise BenchmarkValidationError("verified/refuted/open claim sets must be pairwise disjoint")
     if surfaced != opened:
         raise BenchmarkValidationError("surfaced_claim_ids must exactly match open_claim_ids for the default V5 verification surface")
-    if not detected_failures <= failures:
-        raise BenchmarkValidationError("detected_failure_ids must be a subset of ground-truth failing_claim_ids")
-
-    counterexamples = set(gt["counterexample_ids"])
-    if not detected_counterexamples <= counterexamples:
-        raise BenchmarkValidationError("detected_counterexample_ids must be a subset of ground-truth counterexample_ids")
 
     _number(smw.get("inspection_tokens"), "showmewhy.inspection_tokens")
     _number(smw.get("inspection_lines"), "showmewhy.inspection_lines")
@@ -127,19 +150,26 @@ def score_records(records: Iterable[dict[str, Any]]) -> AggregateScore:
     rows = list(records)
     if not rows:
         raise BenchmarkValidationError("benchmark corpus must contain at least one task")
+
+    task_ids = [row.get("task_id") for row in rows if isinstance(row, dict)]
+    if len(task_ids) != len(set(task_ids)):
+        raise BenchmarkValidationError("task_id values must be unique across the corpus")
     for row in rows:
         validate_record(row)
 
     material_claims = 0
+    classified_claims: set[tuple[str, str]] = set()
     failures: set[tuple[str, str]] = set()
-    detected_failures: set[tuple[str, str]] = set()
-    verified_count = 0
-    false_closures = 0
+    baseline_reported_failures: set[tuple[str, str]] = set()
+    smw_reported_failures: set[tuple[str, str]] = set()
     expected_review: set[tuple[str, str]] = set()
     surfaced: set[tuple[str, str]] = set()
     correctly_surfaced: set[tuple[str, str]] = set()
     counterexamples: set[tuple[str, str]] = set()
-    detected_counterexamples: set[tuple[str, str]] = set()
+    baseline_reported_counterexamples: set[tuple[str, str]] = set()
+    smw_reported_counterexamples: set[tuple[str, str]] = set()
+    verified_count = 0
+    false_closures = 0
 
     baseline_surface = 0
     baseline_tokens = 0.0
@@ -159,17 +189,26 @@ def score_records(records: Iterable[dict[str, Any]]) -> AggregateScore:
         failing = set(gt["failing_claim_ids"])
         review = set(gt["human_review_claim_ids"])
         gt_counter = set(gt["counterexample_ids"])
+        baseline_failure_ids = set(baseline["detected_failure_ids"])
+        baseline_counter_ids = set(baseline["detected_counterexample_ids"])
         smw_surface = set(smw["surfaced_claim_ids"])
         smw_verified = set(smw["verified_claim_ids"])
+        smw_refuted = set(smw["refuted_claim_ids"])
+        smw_open = set(smw["open_claim_ids"])
+        smw_failure_ids = set(smw["detected_failure_ids"])
+        smw_counter_ids = set(smw["detected_counterexample_ids"])
 
         material_claims += len(material)
-        failures |= {(task_id, claim_id) for claim_id in failing}
-        detected_failures |= {(task_id, claim_id) for claim_id in smw["detected_failure_ids"]}
-        expected_review |= {(task_id, claim_id) for claim_id in review}
-        surfaced |= {(task_id, claim_id) for claim_id in smw_surface}
-        correctly_surfaced |= {(task_id, claim_id) for claim_id in (smw_surface & review)}
-        counterexamples |= {(task_id, item_id) for item_id in gt_counter}
-        detected_counterexamples |= {(task_id, item_id) for item_id in smw["detected_counterexample_ids"]}
+        failures |= _keyed(task_id, failing)
+        baseline_reported_failures |= _keyed(task_id, baseline_failure_ids)
+        smw_reported_failures |= _keyed(task_id, smw_failure_ids)
+        expected_review |= _keyed(task_id, review)
+        surfaced |= _keyed(task_id, smw_surface)
+        correctly_surfaced |= _keyed(task_id, smw_surface & review)
+        classified_claims |= _keyed(task_id, smw_verified | smw_refuted | smw_open)
+        counterexamples |= _keyed(task_id, gt_counter)
+        baseline_reported_counterexamples |= _keyed(task_id, baseline_counter_ids)
+        smw_reported_counterexamples |= _keyed(task_id, smw_counter_ids)
 
         verified_count += len(smw_verified)
         false_closures += len(smw_verified & (failing | review))
@@ -182,18 +221,44 @@ def score_records(records: Iterable[dict[str, Any]]) -> AggregateScore:
         smw_lines += float(smw["inspection_lines"])
         smw_seconds += float(smw["verification_seconds"])
 
-    detected_failure_count = len(detected_failures)
-    failure_count = len(failures)
-    missed_failure_count = failure_count - detected_failure_count
+    if not failures:
+        raise BenchmarkValidationError("benchmark corpus must contain at least one ground-truth material failure")
+    if not expected_review:
+        raise BenchmarkValidationError("benchmark corpus must contain at least one claim requiring human review")
+
+    baseline_true_failures = baseline_reported_failures & failures
+    baseline_false_failures = baseline_reported_failures - failures
+    smw_true_failures = smw_reported_failures & failures
+    smw_false_failures = smw_reported_failures - failures
+    missed_failures = failures - smw_true_failures
+
+    baseline_true_counterexamples = baseline_reported_counterexamples & counterexamples
+    baseline_false_counterexamples = baseline_reported_counterexamples - counterexamples
+    smw_true_counterexamples = smw_reported_counterexamples & counterexamples
+    smw_false_counterexamples = smw_reported_counterexamples - counterexamples
+
+    baseline_failure_recall = _ratio(len(baseline_true_failures), len(failures))
+    smw_failure_recall = _ratio(len(smw_true_failures), len(failures))
 
     return AggregateScore(
         tasks=len(rows),
         material_claims=material_claims,
-        material_failures=failure_count,
-        detected_material_failures=detected_failure_count,
-        missed_material_failures=missed_failure_count,
-        material_failure_recall=_ratio(detected_failure_count, failure_count),
-        material_failure_miss_rate=_ratio(missed_failure_count, failure_count),
+        classified_material_claims=len(classified_claims),
+        claim_classification_coverage=_ratio(len(classified_claims), material_claims),
+        material_failures=len(failures),
+        baseline_reported_failures=len(baseline_reported_failures),
+        baseline_detected_material_failures=len(baseline_true_failures),
+        baseline_false_failure_detections=len(baseline_false_failures),
+        baseline_material_failure_recall=baseline_failure_recall,
+        baseline_material_failure_precision=_ratio(len(baseline_true_failures), len(baseline_reported_failures)),
+        showmewhy_reported_failures=len(smw_reported_failures),
+        detected_material_failures=len(smw_true_failures),
+        false_failure_detections=len(smw_false_failures),
+        missed_material_failures=len(missed_failures),
+        material_failure_recall=smw_failure_recall,
+        material_failure_precision=_ratio(len(smw_true_failures), len(smw_reported_failures)),
+        material_failure_recall_delta=smw_failure_recall - baseline_failure_recall,
+        material_failure_miss_rate=_ratio(len(missed_failures), len(failures)),
         verified_claims=verified_count,
         false_closures=false_closures,
         false_closure_rate=_ratio(false_closures, verified_count),
@@ -204,8 +269,16 @@ def score_records(records: Iterable[dict[str, Any]]) -> AggregateScore:
         verification_surface_recall=_ratio(len(correctly_surfaced), len(expected_review)),
         verification_surface_reduction=_reduction(len(surfaced), baseline_surface),
         ground_truth_counterexamples=len(counterexamples),
-        detected_counterexamples=len(detected_counterexamples),
-        counterexample_recall=_ratio(len(detected_counterexamples), len(counterexamples)),
+        baseline_reported_counterexamples=len(baseline_reported_counterexamples),
+        baseline_detected_counterexamples=len(baseline_true_counterexamples),
+        baseline_false_counterexample_detections=len(baseline_false_counterexamples),
+        baseline_counterexample_recall=_ratio(len(baseline_true_counterexamples), len(counterexamples)),
+        baseline_counterexample_precision=_ratio(len(baseline_true_counterexamples), len(baseline_reported_counterexamples)),
+        showmewhy_reported_counterexamples=len(smw_reported_counterexamples),
+        detected_counterexamples=len(smw_true_counterexamples),
+        false_counterexample_detections=len(smw_false_counterexamples),
+        counterexample_recall=_ratio(len(smw_true_counterexamples), len(counterexamples)),
+        counterexample_precision=_ratio(len(smw_true_counterexamples), len(smw_reported_counterexamples)),
         inspection_token_reduction=_reduction(smw_tokens, baseline_tokens),
         inspection_line_reduction=_reduction(smw_lines, baseline_lines),
         verification_time_reduction=_reduction(smw_seconds, baseline_seconds),
