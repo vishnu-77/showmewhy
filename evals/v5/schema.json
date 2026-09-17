@@ -27,20 +27,40 @@
         "verification_seconds": {"type": "number", "minimum": 0}
       }
     },
+    "pairing": {
+      "type": "object",
+      "required": ["pair_id", "repository", "revision", "task_prompt_sha256", "model", "agent_runtime", "tool_profile", "repeat_index"],
+      "properties": {
+        "pair_id": {"type": "string", "minLength": 1},
+        "repository": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "task_prompt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "model": {"type": "string", "minLength": 1},
+        "agent_runtime": {"type": "string", "minLength": 1},
+        "tool_profile": {"type": "string", "minLength": 1},
+        "repeat_index": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
     "task": {
       "type": "object",
-      "required": ["task_id", "domain", "ground_truth", "baseline", "showmewhy"],
+      "required": ["task_id", "domain", "pairing", "ground_truth", "baseline", "showmewhy"],
       "properties": {
         "task_id": {"type": "string", "minLength": 1},
         "domain": {"type": "string", "minLength": 1},
+        "pairing": {"$ref": "#/$defs/pairing"},
         "ground_truth": {
           "type": "object",
-          "required": ["material_claim_ids", "failing_claim_ids", "human_review_claim_ids", "counterexample_ids"],
+          "required": ["material_claim_ids", "failing_claim_ids", "human_review_claim_ids", "counterexample_ids", "oracle_refs", "labeler_count", "adjudicated", "blinded_to_showmewhy"],
           "properties": {
             "material_claim_ids": {"$ref": "#/$defs/idList"},
             "failing_claim_ids": {"$ref": "#/$defs/idList"},
             "human_review_claim_ids": {"$ref": "#/$defs/idList"},
-            "counterexample_ids": {"$ref": "#/$defs/idList"}
+            "counterexample_ids": {"$ref": "#/$defs/idList"},
+            "oracle_refs": {"$ref": "#/$defs/idList"},
+            "labeler_count": {"type": "integer", "minimum": 1},
+            "adjudicated": {"type": "boolean"},
+            "blinded_to_showmewhy": {"const": true}
           },
           "additionalProperties": false
         },
@@ -49,8 +69,12 @@
             {"$ref": "#/$defs/cost"},
             {
               "type": "object",
-              "required": ["inspected_claim_ids"],
-              "properties": {"inspected_claim_ids": {"$ref": "#/$defs/idList"}}
+              "required": ["inspected_claim_ids", "detected_failure_ids", "detected_counterexample_ids"],
+              "properties": {
+                "inspected_claim_ids": {"$ref": "#/$defs/idList"},
+                "detected_failure_ids": {"$ref": "#/$defs/idList"},
+                "detected_counterexample_ids": {"$ref": "#/$defs/idList"}
+              }
             }
           ]
         },
