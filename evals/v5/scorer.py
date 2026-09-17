@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -17,6 +18,12 @@ def _ids(value: Any, field: str) -> set[str]:
     if len(value) != len(set(value)):
         raise BenchmarkValidationError(f"{field} contains duplicate ids")
     return set(value)
+
+
+def _string(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise BenchmarkValidationError(f"{field} must be a non-empty string")
+    return value
 
 
 def _number(value: Any, field: str) -> float:
@@ -87,24 +94,44 @@ class AggregateScore:
 def validate_record(record: dict[str, Any]) -> None:
     if not isinstance(record, dict):
         raise BenchmarkValidationError("each benchmark record must be an object")
-    if not isinstance(record.get("task_id"), str) or not record["task_id"]:
-        raise BenchmarkValidationError("task_id must be a non-empty string")
-    if not isinstance(record.get("domain"), str) or not record["domain"]:
-        raise BenchmarkValidationError("domain must be a non-empty string")
+    _string(record.get("task_id"), "task_id")
+    _string(record.get("domain"), "domain")
 
+    pairing = record.get("pairing")
     gt = record.get("ground_truth")
     baseline = record.get("baseline")
     smw = record.get("showmewhy")
+    if not isinstance(pairing, dict):
+        raise BenchmarkValidationError("pairing must be an object")
     if not isinstance(gt, dict) or not isinstance(baseline, dict) or not isinstance(smw, dict):
         raise BenchmarkValidationError("ground_truth, baseline and showmewhy must be objects")
+
+    for field in ("pair_id", "repository", "revision", "model", "agent_runtime", "tool_profile"):
+        _string(pairing.get(field), f"pairing.{field}")
+    prompt_hash = _string(pairing.get("task_prompt_sha256"), "pairing.task_prompt_sha256")
+    if not re.fullmatch(r"[0-9a-f]{64}", prompt_hash):
+        raise BenchmarkValidationError("pairing.task_prompt_sha256 must be a lowercase 64-character SHA-256 hex digest")
+    repeat_index = pairing.get("repeat_index")
+    if not isinstance(repeat_index, int) or isinstance(repeat_index, bool) or repeat_index < 0:
+        raise BenchmarkValidationError("pairing.repeat_index must be a non-negative integer")
 
     material = _ids(gt.get("material_claim_ids"), "ground_truth.material_claim_ids")
     failures = _ids(gt.get("failing_claim_ids"), "ground_truth.failing_claim_ids")
     human_review = _ids(gt.get("human_review_claim_ids"), "ground_truth.human_review_claim_ids")
     _ids(gt.get("counterexample_ids"), "ground_truth.counterexample_ids")
+    oracle_refs = _ids(gt.get("oracle_refs"), "ground_truth.oracle_refs")
+    labeler_count = gt.get("labeler_count")
+    if not isinstance(labeler_count, int) or isinstance(labeler_count, bool) or labeler_count < 1:
+        raise BenchmarkValidationError("ground_truth.labeler_count must be a positive integer")
+    if not isinstance(gt.get("adjudicated"), bool):
+        raise BenchmarkValidationError("ground_truth.adjudicated must be boolean")
+    if gt.get("blinded_to_showmewhy") is not True:
+        raise BenchmarkValidationError("ground_truth.blinded_to_showmewhy must be true")
 
     if not material:
         raise BenchmarkValidationError("ground_truth.material_claim_ids must not be empty")
+    if not oracle_refs:
+        raise BenchmarkValidationError("ground_truth.oracle_refs must not be empty")
     if not failures <= material:
         raise BenchmarkValidationError("failing_claim_ids must be a subset of material_claim_ids")
     if not human_review <= material:
@@ -154,6 +181,9 @@ def score_records(records: Iterable[dict[str, Any]]) -> AggregateScore:
     task_ids = [row.get("task_id") for row in rows if isinstance(row, dict)]
     if len(task_ids) != len(set(task_ids)):
         raise BenchmarkValidationError("task_id values must be unique across the corpus")
+    pair_ids = [row.get("pairing", {}).get("pair_id") for row in rows if isinstance(row, dict)]
+    if len(pair_ids) != len(set(pair_ids)):
+        raise BenchmarkValidationError("pairing.pair_id values must be unique across the corpus")
     for row in rows:
         validate_record(row)
 
