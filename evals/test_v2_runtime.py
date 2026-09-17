@@ -51,6 +51,14 @@ class V2RuntimeTests(unittest.TestCase):
                 self.assertFalse((Path(project_td) / ".showmewhy").exists())
                 self.assertTrue(runtime_root(project_td).is_relative_to(Path(state_td).resolve()))
 
+    def test_default_mode_never_replaces(self):
+        with tempfile.TemporaryDirectory() as td:
+            event = {"cwd": td, "tool_name": "Bash", "tool_input": {}, "tool_response": {"stdout": self._pytest_log(), "stderr": "", "interrupted": False, "isImage": False}}
+            output, digest = process_event(event, target_tokens=300)
+            self.assertEqual(output, {})
+            self.assertIsNotNone(digest)
+            self.assertEqual(digest["policy"]["mode"], "shadow")
+
     def test_shadow_mode_never_replaces(self):
         with tempfile.TemporaryDirectory() as td:
             event = {"cwd": td, "tool_name": "Bash", "tool_input": {}, "tool_response": {"stdout": self._pytest_log(), "stderr": "", "interrupted": False, "isImage": False}}

@@ -29,11 +29,12 @@ class V4PolicyTests(unittest.TestCase):
         self._write_run(cwd, run_id, complete=complete, compression=compression)
         return record_feedback(run_id, reopened=reopened, material_loss=material_loss, cwd=cwd)
 
-    def test_baseline_before_enough_feedback(self):
+    def test_baseline_before_enough_feedback_is_shadow_only(self):
         with tempfile.TemporaryDirectory() as td:
             policy = recommend_policy(td)
             self.assertEqual(policy["target_tokens"], 700)
-            self.assertEqual(policy["mode"], "replace")
+            self.assertEqual(policy["mode"], "shadow")
+            self.assertIn("opt in", policy["reason"])
 
     def test_low_reopen_complete_runs_allow_stronger_compression(self):
         with tempfile.TemporaryDirectory() as td:
@@ -41,6 +42,7 @@ class V4PolicyTests(unittest.TestCase):
                 self._feedback(td, idx, reopened=False, complete=True, compression=80.0)
             policy = recommend_policy(td)
             self.assertEqual(policy["target_tokens"], 500)
+            self.assertEqual(policy["mode"], "shadow")
             self.assertFalse(policy["safety_lock"])
 
     def test_high_reopen_rate_preserves_more_context(self):
@@ -49,6 +51,7 @@ class V4PolicyTests(unittest.TestCase):
                 self._feedback(td, idx, reopened=idx < 3, complete=True, compression=80.0)
             policy = recommend_policy(td)
             self.assertEqual(policy["target_tokens"], 1100)
+            self.assertEqual(policy["mode"], "shadow")
 
     def test_low_parser_completeness_preserves_more_context(self):
         with tempfile.TemporaryDirectory() as td:
@@ -88,6 +91,38 @@ class V4PolicyTests(unittest.TestCase):
             self.assertIsNotNone(digest)
             self.assertTrue(digest["policy"]["safety_lock"])
             self.assertEqual(digest["policy"]["mode"], "shadow")
+
+    def test_default_shadow_mode_never_replaces_raw_bash_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            raw = "\n".join(f"noise line {i}" for i in range(800)) + "\n= 1 failed, 20 passed in 2s =\n"
+            event = {"cwd": td, "tool_name": "Bash", "tool_input": {"command": "pytest"}, "tool_response": {"stdout": raw, "stderr": ""}}
+            output, digest = process_event(event)
+            self.assertEqual(output, {})
+            self.assertIsNotNone(digest)
+            self.assertEqual(digest["policy"]["mode"], "shadow")
+            self.assertTrue(digest["policy"]["replacement_eligible"])
+
+    def test_explicit_replace_allows_complete_high_confidence_parser(self):
+        with tempfile.TemporaryDirectory() as td:
+            raw = "\n".join(f"noise line {i}" for i in range(800)) + "\n= 1 failed, 20 passed in 2s =\n"
+            event = {"cwd": td, "tool_name": "Bash", "tool_input": {"command": "pytest"}, "tool_response": {"stdout": raw, "stderr": ""}}
+            output, digest = process_event(event, mode="replace")
+            self.assertIn("hookSpecificOutput", output)
+            self.assertTrue(digest["policy"]["replacement_eligible"])
+            updated = output["hookSpecificOutput"]["updatedToolOutput"]
+            self.assertNotEqual(updated["stdout"], raw)
+            self.assertIn("Raw evidence:", updated["stdout"])
+
+    def test_explicit_replace_refuses_incomplete_generic_digest(self):
+        with tempfile.TemporaryDirectory() as td:
+            raw = "\n".join(f"sqlite row {i}: value-{i}" for i in range(1200))
+            event = {"cwd": td, "tool_name": "Bash", "tool_input": {"command": "sqlite3 file.db 'select * from nodes'"}, "tool_response": {"stdout": raw, "stderr": ""}}
+            output, digest = process_event(event, mode="replace", target_tokens=200)
+            self.assertEqual(output, {})
+            self.assertIsNotNone(digest)
+            self.assertFalse(digest["policy"]["replacement_eligible"])
+            self.assertIn("incomplete", digest["policy"]["replacement_reason"])
+            self.assertEqual(digest["parser"]["name"], "bounded-log")
 
 
 if __name__ == "__main__":

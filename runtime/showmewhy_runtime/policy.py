@@ -107,11 +107,11 @@ def recommend_policy(cwd: str | Path | None = None) -> dict[str, Any]:
     if len(events) < 3:
         return {
             "version": "4.0",
-            "mode": "replace",
+            "mode": "shadow",
             "target_tokens": BASELINE_TARGET,
             "safety_lock": False,
             "samples": len(events),
-            "reason": "Insufficient verified feedback; use the baseline context budget.",
+            "reason": "Insufficient verified feedback; observe compression in shadow mode. Set SHOWMEWHY_MODE=replace to opt in to eligible output replacement.",
         }
 
     reopen_rate = sum(bool(e.get("reopened")) for e in events) / len(events)
@@ -130,12 +130,12 @@ def recommend_policy(cwd: str | Path | None = None) -> dict[str, Any]:
 
     return {
         "version": "4.0",
-        "mode": "replace",
+        "mode": "shadow",
         "target_tokens": target,
         "safety_lock": False,
         "samples": len(events),
         "reopen_rate": round(reopen_rate, 3),
         "parser_complete_rate": round(complete_rate, 3),
         "avg_compression_pct": round(avg_compression, 1),
-        "reason": reason,
+        "reason": reason + " Replacement remains explicit opt-in via SHOWMEWHY_MODE=replace.",
     }
