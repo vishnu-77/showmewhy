@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="brand/showmewhy-lockup.svg" alt="ShowMeWhy" width="520">
+<img src="brand/showmewhy-philosopher-lockup.svg" alt="ShowMeWhy" width="460">
 
 **Review only what the AI couldn't prove.**
 
@@ -12,6 +12,10 @@ Turn agent output into the smallest remaining verification surface.
 </p>
 
 </div>
+
+<p align="center">
+  <img src="brand/showmewhy-arrange.svg" alt="ShowMeWhy arranges noisy agent output into a verification surface" width="860">
+</p>
 
 ## Install
 
