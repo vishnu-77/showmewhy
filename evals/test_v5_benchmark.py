@@ -89,6 +89,30 @@ class V5BenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(BenchmarkValidationError, "task_id values must be unique"):
             score_records(rows)
 
+    def test_pair_ids_must_be_unique(self):
+        rows = deepcopy(self.records)
+        rows[1]["pairing"]["pair_id"] = rows[0]["pairing"]["pair_id"]
+        with self.assertRaisesRegex(BenchmarkValidationError, "pairing.pair_id values must be unique"):
+            score_records(rows)
+
+    def test_pairing_prompt_hash_must_be_sha256(self):
+        rows = deepcopy(self.records)
+        rows[0]["pairing"]["task_prompt_sha256"] = "not-a-hash"
+        with self.assertRaisesRegex(BenchmarkValidationError, "task_prompt_sha256"):
+            score_records(rows)
+
+    def test_ground_truth_must_be_blinded_to_showmewhy(self):
+        rows = deepcopy(self.records)
+        rows[0]["ground_truth"]["blinded_to_showmewhy"] = False
+        with self.assertRaisesRegex(BenchmarkValidationError, "blinded_to_showmewhy"):
+            score_records(rows)
+
+    def test_ground_truth_requires_independent_oracle_reference(self):
+        rows = deepcopy(self.records)
+        rows[0]["ground_truth"]["oracle_refs"] = []
+        with self.assertRaisesRegex(BenchmarkValidationError, "oracle_refs"):
+            score_records(rows)
+
     def test_fixture_is_explicitly_non_claim_bearing(self):
         readme = (V5 / "README.md").read_text(encoding="utf-8")
         self.assertIn("evidence of product effectiveness", readme)
