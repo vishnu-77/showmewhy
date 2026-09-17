@@ -1,7 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
   <title id="title">ShowMeWhy</title>
   <desc id="desc">ShowMeWhy Socratic thinker logo with hidden dialogue profile and flowing S-shaped hair.</desc>
-  <g transform="translate(250 24) scale(.82)" fill="none" stroke="#0A0A0A" stroke-linecap="round" stroke-linejoin="round">
+  <style>
+    .showmewhy-stroke { stroke: #0A0A0A; }
+    .showmewhy-fill { fill: #0A0A0A; }
+    @media (prefers-color-scheme: dark) {
+      .showmewhy-stroke { stroke: #F7F7F4; }
+      .showmewhy-fill { fill: #F7F7F4; }
+    }
+  </style>
+  <g class="showmewhy-stroke" transform="translate(250 24) scale(.82)" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path stroke-width="24" d="M116 202C128 123 204 78 294 90c51 7 87 36 96 82"/>
     <path stroke-width="28" d="M96 286c20-74 75-109 133-115 53-6 91-32 112-78"/>
     <path stroke-width="26" d="M88 352c30-57 75-83 126-87 54-4 91-34 112-86"/>
@@ -17,5 +25,5 @@
     <path stroke-width="12" d="M274 206c-16 11-26 26-30 45-3 18 1 31 12 41l-9 11 15 8c2 18 9 33 22 45"/>
     <path stroke-width="10" d="M251 269l12 4"/>
   </g>
-  <text x="480" y="505" text-anchor="middle" fill="#0A0A0A" font-family="Georgia, 'Times New Roman', serif" font-size="92" letter-spacing="-3">ShowMeWhy</text>
+  <text class="showmewhy-fill" x="480" y="505" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="92" letter-spacing="-3">ShowMeWhy</text>
 </svg>
