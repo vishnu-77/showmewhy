@@ -46,6 +46,10 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
         "samples": int(policy.get("samples", 0)),
         "reason": policy.get("reason"),
     }
+    if not result.complete:
+        digest["caveats"].append(
+            "Compression is incomplete; original tool output was preserved in the active context."
+        )
 
     try:
         graph = build_graph(digest)
@@ -57,6 +61,8 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
     persist_digest(digest, base_cwd)
 
     if effective_mode == "shadow":
+        return {}, digest
+    if not result.complete:
         return {}, digest
     if effective_mode != "replace":
         return {}, digest
