@@ -1,0 +1,58 @@
+{
+  "tasks": [
+    {
+      "task_id": "smoke-code-auth",
+      "domain": "code",
+      "ground_truth": {
+        "material_claim_ids": ["c1", "c2", "c3", "c4"],
+        "failing_claim_ids": ["c2"],
+        "human_review_claim_ids": ["c3"],
+        "counterexample_ids": ["x1"]
+      },
+      "baseline": {
+        "inspected_claim_ids": ["c1", "c2", "c3", "c4"],
+        "inspection_tokens": 800,
+        "inspection_lines": 120,
+        "verification_seconds": 240
+      },
+      "showmewhy": {
+        "surfaced_claim_ids": ["c3"],
+        "verified_claim_ids": ["c1", "c4"],
+        "refuted_claim_ids": ["c2"],
+        "open_claim_ids": ["c3"],
+        "detected_failure_ids": ["c2"],
+        "detected_counterexample_ids": ["x1"],
+        "inspection_tokens": 260,
+        "inspection_lines": 38,
+        "verification_seconds": 90
+      }
+    },
+    {
+      "task_id": "smoke-infra-boundary",
+      "domain": "infrastructure",
+      "ground_truth": {
+        "material_claim_ids": ["i1", "i2", "i3"],
+        "failing_claim_ids": ["i2"],
+        "human_review_claim_ids": ["i3"],
+        "counterexample_ids": ["ix1"]
+      },
+      "baseline": {
+        "inspected_claim_ids": ["i1", "i2", "i3"],
+        "inspection_tokens": 600,
+        "inspection_lines": 90,
+        "verification_seconds": 180
+      },
+      "showmewhy": {
+        "surfaced_claim_ids": ["i3"],
+        "verified_claim_ids": ["i1"],
+        "refuted_claim_ids": ["i2"],
+        "open_claim_ids": ["i3"],
+        "detected_failure_ids": ["i2"],
+        "detected_counterexample_ids": ["ix1"],
+        "inspection_tokens": 220,
+        "inspection_lines": 34,
+        "verification_seconds": 75
+      }
+    }
+  ]
+}
