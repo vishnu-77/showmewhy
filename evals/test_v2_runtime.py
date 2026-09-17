@@ -1,11 +1,14 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "runtime"))
 
+from showmewhy_runtime.common import runtime_root
 from showmewhy_runtime.compressors import compress_text, replace_response_text
 from showmewhy_runtime.evidence import EvidenceStore
 from showmewhy_runtime.hook import process_event
@@ -35,15 +38,18 @@ class V2RuntimeTests(unittest.TestCase):
     def test_unknown_shape_fails_open(self):
         self.assertIsNone(replace_response_text("Read", {"content": "old"}, "compact"))
 
-    def test_evidence_is_written_before_explicit_replacement(self):
-        with tempfile.TemporaryDirectory() as td:
-            event = {"cwd": td, "session_id": "s1", "tool_use_id": "t1", "tool_name": "Bash", "tool_input": {"command": "pytest -q"}, "tool_response": {"stdout": self._pytest_log(), "stderr": "", "interrupted": False, "isImage": False}}
-            output, digest = process_event(event, mode="replace", target_tokens=300)
-            self.assertIn("updatedToolOutput", output["hookSpecificOutput"])
-            self.assertGreater(digest["tokens_avoided"], 0)
-            stored = EvidenceStore(td).get(digest["raw_ref"])
-            self.assertIn("test_expired_session", stored["tool_response"]["stdout"])
-            self.assertTrue((Path(td) / ".showmewhy" / "runs" / f"{digest['run_id']}.json").exists())
+    def test_evidence_is_written_before_replacement_without_repo_pollution(self):
+        with tempfile.TemporaryDirectory() as project_td, tempfile.TemporaryDirectory() as state_td:
+            with patch.dict(os.environ, {"SHOWMEWHY_HOME": state_td}):
+                event = {"cwd": project_td, "session_id": "s1", "tool_use_id": "t1", "tool_name": "Bash", "tool_input": {"command": "pytest -q"}, "tool_response": {"stdout": self._pytest_log(), "stderr": "", "interrupted": False, "isImage": False}}
+                output, digest = process_event(event, target_tokens=300)
+                self.assertIn("updatedToolOutput", output["hookSpecificOutput"])
+                self.assertGreater(digest["tokens_avoided"], 0)
+                stored = EvidenceStore(project_td).get(digest["raw_ref"])
+                self.assertIn("test_expired_session", stored["tool_response"]["stdout"])
+                self.assertTrue((runtime_root(project_td) / "runs" / f"{digest['run_id']}.json").exists())
+                self.assertFalse((Path(project_td) / ".showmewhy").exists())
+                self.assertTrue(runtime_root(project_td).is_relative_to(Path(state_td).resolve()))
 
     def test_default_mode_never_replaces(self):
         with tempfile.TemporaryDirectory() as td:

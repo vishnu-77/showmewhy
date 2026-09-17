@@ -1,5 +1,52 @@
 # Changelog
 
+## 4.4.1 - 2026-09-16
+
+### Added
+
+- `/showmewhy status` for a compact, read-only installation health view covering the loaded version, plugin state, marketplace state, update mode and global project-scoped runtime model.
+- `/showmewhy update` using Claude Code's native `claude plugin update showmewhy@showmewhy --scope user` path, followed by installed-state verification.
+
+### Changed
+
+- Public documentation now standardises on the bare `/showmewhy` invocation. Claude Code keeps plugin namespacing internally, but current skill resolution also accepts the bare skill name when there is no command collision.
+- Installer completion output now advertises `/showmewhy`, `/showmewhy status`, and `/showmewhy update`.
+- README now documents direct marketplace add/install commands in addition to the one-line installers.
+- README runtime documentation now matches 4.4.0: ShowMeWhy state lives outside consumer repositories in OS-level project-scoped storage.
+
+### Lifecycle contract
+
+- `status` and `update` are lifecycle modes, not verification subjects and not composition stages.
+- `update` never uninstalls/reinstalls ShowMeWhy as its normal path and never updates unrelated plugins.
+- After an on-disk update, ShowMeWhy instructs the user to run `/reload-plugins` or start a new Claude Code session before assuming the newly installed contract is active.
+- Version changes are reported only when the before/after state is observable.
+
+## 4.4.0 - 2026-09-16
+
+### Added
+
+- ShowMeWhy-owned multi-stage composition under the existing `/showmewhy` command. Embedded stage tokens such as `/monitor /showmewhy /i-have-adhd -- <task>` are parsed as ShowMeWhy arguments rather than treated as nested Claude slash-command execution.
+- Deterministic `compose.py` parsing with fail-closed validation for unknown stages, invalid ordering, multiple presentation stages, and malformed task boundaries.
+- A documented composition contract and regression coverage for exact multi-slash syntax, task paths containing `/`, alias normalisation, and the invariant that `skills/showmewhy` remains the only top-level user-invocable Skill.
+- Global, project-scoped runtime storage with stable per-project namespaces and an explicit `SHOWMEWHY_HOME` override.
+
+### Changed
+
+- Runtime evidence, run digests, provenance, feedback, and adaptive-policy state now live outside consumer repositories by default.
+- Git repository/worktree roots define project identity, so commands launched from subdirectories resolve to the same ShowMeWhy state namespace while separate projects remain isolated.
+- Platform defaults now follow OS-appropriate state locations: macOS Application Support, Linux XDG/local state, and Windows Local AppData.
+- Composition remains strictly inside ShowMeWhy: no `/pipe`, `/flow`, second orchestration Skill, or claim that Claude Code can programmatically invoke arbitrary nested slash commands.
+
+### Fixed
+
+- Using ShowMeWhy no longer creates `.showmewhy/` inside consumer projects, so it does not add untracked runtime directories or require consumers to modify `.gitignore`.
+- Project-local state is no longer relied upon for runtime persistence, preventing accidental commits of ShowMeWhy evidence or policy files.
+
+### Validation
+
+- Composition regressions run across the Python matrix and real Claude plugin acceptance.
+- Global-state tests verify zero runtime writes inside consumer repositories, stable project namespaces, Git worktree/subdirectory resolution, project isolation, and custom state-root overrides.
+
 ## 4.3.0 - 2026-09-16
 
 ### Added

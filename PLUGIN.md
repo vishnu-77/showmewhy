@@ -4,13 +4,33 @@ ShowMeWhy is distributed as one Claude Code marketplace plugin. The user-facing 
 
 ## Recommended installation
 
-### macOS, Linux and WSL
+### Claude Code marketplace
+
+Inside Claude Code:
+
+```text
+/plugin marketplace add vishnu-77/showmewhy
+/plugin install showmewhy@showmewhy
+/reload-plugins
+/showmewhy
+```
+
+Equivalent shell commands:
+
+```bash
+claude plugin marketplace add vishnu-77/showmewhy
+claude plugin install showmewhy@showmewhy
+```
+
+### One-line installer
+
+macOS, Linux and WSL:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh | bash
 ```
 
-### Windows PowerShell
+Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
@@ -30,13 +50,13 @@ installs showmewhy@showmewhy
 Skill + hooks + runtime update together
 ```
 
-Claude namespaces Skills distributed through plugins, so the explicit invocation is:
+Claude Code gives plugin skills a qualified `plugin-name:skill-name` identity, but current skill resolution also accepts the bare skill name when it does not collide with another command. ShowMeWhy therefore standardises its public invocation on:
 
 ```text
-/showmewhy:showmewhy
+/showmewhy
 ```
 
-The namespaced command is accepted as a platform constraint in exchange for a single source of truth and reliable update semantics.
+No second orchestration command is installed.
 
 ## Update model
 
@@ -44,16 +64,45 @@ ShowMeWhy intentionally omits `version` from `.claude-plugin/plugin.json`. For a
 
 Semantic product releases remain tracked through `VERSION`, `CHANGELOG.md`, Git tags and GitHub Releases. They are release metadata, not the Claude plugin-cache key.
 
-The installer also sets `autoUpdate: true` for the `showmewhy` marketplace in Claude's marketplace state. Claude Code can then refresh the marketplace and installed plugin at startup. If Claude updates a plugin while a session is already open, follow Claude's prompt to reload plugins or start a new session.
+The installer sets `autoUpdate: true` for the `showmewhy` marketplace in Claude's marketplace state. Claude Code can refresh the marketplace and installed plugin in the background after startup. A running session continues using the version it loaded until plugins are reloaded or a new session starts.
 
-## Manual installation
+ShowMeWhy also exposes explicit lifecycle modes under the same command:
 
-```bash
-claude plugin marketplace add https://github.com/vishnu-77/showmewhy.git
-claude plugin install showmewhy@showmewhy
+```text
+/showmewhy status
+/showmewhy update
 ```
 
-For manual installs, enable auto-update for the ShowMeWhy marketplace through Claude's `/plugin` marketplace UI. The provided installer does this automatically during installation.
+`status` is read-only. `update` uses Claude Code's native updater:
+
+```bash
+claude plugin update showmewhy@showmewhy --scope user
+```
+
+If the update changes the on-disk plugin while Claude Code is already running, apply it with:
+
+```text
+/reload-plugins
+```
+
+or start a new Claude Code session.
+
+## Manual marketplace management
+
+Refresh the marketplace catalog:
+
+```bash
+claude plugin marketplace update showmewhy
+```
+
+Inspect configured marketplaces and installed plugins:
+
+```bash
+claude plugin marketplace list --json
+claude plugin list --json
+```
+
+For manual installs, enable auto-update for the ShowMeWhy marketplace through Claude's `/plugin` marketplace UI if desired. The provided installer enables it automatically.
 
 ## Validation
 

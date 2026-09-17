@@ -18,5 +18,5 @@
     <path stroke-width="12" d="M274 206c-16 11-26 26-30 45-3 18 1 31 12 41l-9 11 15 8c2 18 9 33 22 45"/>
     <path stroke-width="10" d="M251 269l12 4"/>
   </g>
-  <text x="480" y="505" text-anchor="middle" fill="#0A0A0A" font-family="Georgia, 'Times New Roman', serif" font-size="92" letter-spacing="-3">ShowMeWhy</text>
+  <text class="showmewhy-fill" x="480" y="505" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="92" letter-spacing="-3">ShowMeWhy</text>
 </svg>
