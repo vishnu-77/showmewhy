@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.4.3 - 2026-09-21
+
+### Fixed
+
+- Cold-start context compression now defaults to `shadow` instead of replacing Claude Code tool output before ShowMeWhy has verified feedback.
+- A material-loss safety lock can no longer be bypassed with `SHOWMEWHY_MODE=replace`.
+- Failed pytest/Jest output, TypeScript/lint failures and `git diff` summaries are treated as incomplete representations and cannot replace the underlying visible evidence.
+- Bash compression now parses only the stdout field it can replace; stderr remains independently visible instead of being duplicated into a compressed stdout digest.
+- Invalid context-budget configuration and policy/compression/digest persistence failures fail open and preserve the host tool output.
+- The deterministic verifier now enforces the canonical Verification Surface schema instead of accepting looser manifests.
+- Refuted claims now surface the observable refuting witness before free-form unresolved-reason text.
+
+### Safety and validation
+
+- Installed-plugin acceptance now executes the packaged PostToolUse hook, verifies cold-start shadow behaviour and raw evidence/digest persistence, and verifies explicit replacement only for a safe complete representation.
+- Added regressions for lossy test/diff parsers, stderr preservation, invalid runtime configuration, digest-persistence failure, sticky safety-lock precedence, schema-required fields, duplicate witness requirements and unsupported manifest fields.
+- Full Python 3.11/3.12/3.13, Claude plugin and cross-platform installer acceptance gates remain required.
+
+### Evaluation infrastructure
+
+- V5 now includes reproducible upstream oracle validation and a ground-truth-blind paired-run executor for the frozen real-world pilot corpus.
+- These evaluation additions do not constitute an effectiveness claim; paired execution and scoring remain the evidence gate.
+
 ## 4.4.2 - 2026-09-17
 
 ### Fixed
