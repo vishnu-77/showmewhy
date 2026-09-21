@@ -23,6 +23,26 @@ RISKS = {"low", "medium", "high"}
 RISK_ORDER = {"high": 0, "medium": 1, "low": 2}
 STATE_ORDER = {"refuted": 0, "open": 1, "verified": 2}
 
+MANIFEST_FIELDS = {"result", "claims"}
+CLAIM_REQUIRED_FIELDS = {
+    "id",
+    "text",
+    "obligation",
+    "risk",
+    "required_witnesses",
+    "witnesses",
+    "next_action",
+}
+CLAIM_FIELDS = CLAIM_REQUIRED_FIELDS | {
+    "material",
+    "blocking",
+    "priority",
+    "requires_human_judgement",
+    "unresolved_reason",
+}
+WITNESS_REQUIRED_FIELDS = {"kind", "source", "outcome"}
+WITNESS_FIELDS = set(WITNESS_REQUIRED_FIELDS)
+
 
 class VerificationError(ValueError):
     pass
@@ -34,10 +54,30 @@ def _nonempty(value: Any, field: str) -> str:
     return value.strip()
 
 
+def _reject_extra_fields(value: Dict[str, Any], allowed: set[str], field: str) -> None:
+    extra = sorted(set(value) - allowed)
+    if extra:
+        raise VerificationError(f"{field} has unsupported field(s): {', '.join(extra)}")
+
+
+def _require_fields(value: Dict[str, Any], required: set[str], field: str) -> None:
+    missing = sorted(required - set(value))
+    if missing:
+        raise VerificationError(f"{field} missing required field(s): {', '.join(missing)}")
+
+
+def _optional_bool(value: Dict[str, Any], key: str, field: str) -> None:
+    if key in value and not isinstance(value[key], bool):
+        raise VerificationError(f"{field}.{key} must be a boolean")
+
+
 def validate_manifest(manifest: Dict[str, Any]) -> None:
     if not isinstance(manifest, dict):
         raise VerificationError("manifest must be an object")
+    _reject_extra_fields(manifest, MANIFEST_FIELDS, "manifest")
+    _require_fields(manifest, MANIFEST_FIELDS, "manifest")
     _nonempty(manifest.get("result"), "result")
+
     claims = manifest.get("claims")
     if not isinstance(claims, list) or not claims:
         raise VerificationError("claims must be a non-empty array")
@@ -47,39 +87,63 @@ def validate_manifest(manifest: Dict[str, Any]) -> None:
         prefix = f"claims[{index}]"
         if not isinstance(claim, dict):
             raise VerificationError(f"{prefix} must be an object")
+
+        _reject_extra_fields(claim, CLAIM_FIELDS, prefix)
+        _require_fields(claim, CLAIM_REQUIRED_FIELDS, prefix)
+
         cid = _nonempty(claim.get("id"), f"{prefix}.id")
         if cid in seen_ids:
             raise VerificationError(f"duplicate claim id: {cid}")
         seen_ids.add(cid)
+
         _nonempty(claim.get("text"), f"{prefix}.text")
         _nonempty(claim.get("obligation"), f"{prefix}.obligation")
-        risk = claim.get("risk", "medium")
+        _nonempty(claim.get("next_action"), f"{prefix}.next_action")
+
+        risk = claim.get("risk")
         if risk not in RISKS:
             raise VerificationError(f"{prefix}.risk must be low|medium|high")
+
         priority = claim.get("priority", 3)
-        if not isinstance(priority, int) or not 1 <= priority <= 5:
+        if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 5:
             raise VerificationError(f"{prefix}.priority must be an integer 1..5")
 
-        required = claim.get("required_witnesses", [])
+        for key in ("material", "blocking", "requires_human_judgement"):
+            _optional_bool(claim, key, prefix)
+
+        if "unresolved_reason" in claim and not isinstance(claim["unresolved_reason"], str):
+            raise VerificationError(f"{prefix}.unresolved_reason must be a string")
+
+        required = claim.get("required_witnesses")
         if not isinstance(required, list):
             raise VerificationError(f"{prefix}.required_witnesses must be an array")
+        if len(required) != len(set(required)):
+            raise VerificationError(f"{prefix}.required_witnesses must contain unique witness kinds")
         for kind in required:
             if kind not in WITNESS_KINDS:
-                raise VerificationError(f"{prefix}.required_witnesses has unknown kind: {kind}")
+                raise VerificationError(
+                    f"{prefix}.required_witnesses has unknown kind: {kind}"
+                )
 
-        witnesses = claim.get("witnesses", [])
+        witnesses = claim.get("witnesses")
         if not isinstance(witnesses, list):
             raise VerificationError(f"{prefix}.witnesses must be an array")
         for w_index, witness in enumerate(witnesses):
             wp = f"{prefix}.witnesses[{w_index}]"
             if not isinstance(witness, dict):
                 raise VerificationError(f"{wp} must be an object")
+
+            _reject_extra_fields(witness, WITNESS_FIELDS, wp)
+            _require_fields(witness, WITNESS_REQUIRED_FIELDS, wp)
+
             kind = witness.get("kind")
             if kind not in WITNESS_KINDS:
                 raise VerificationError(f"{wp}.kind must be a supported witness kind")
             outcome = witness.get("outcome")
             if outcome not in OUTCOMES:
-                raise VerificationError(f"{wp}.outcome must be supports|refutes|inconclusive")
+                raise VerificationError(
+                    f"{wp}.outcome must be supports|refutes|inconclusive"
+                )
             _nonempty(witness.get("source"), f"{wp}.source")
 
 
@@ -155,12 +219,12 @@ def analyse(manifest: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _gap_reason(claim: Dict[str, Any]) -> str:
-    explicit = claim.get("unresolved_reason")
-    if isinstance(explicit, str) and explicit.strip():
-        return explicit.strip()
     if claim["state"] == "refuted":
         witness = claim["refuting_witnesses"][0]
         return f"Refuted by {witness['source']}."
+    explicit = claim.get("unresolved_reason")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
     if claim["missing_witnesses"]:
         return "Missing witness: " + ", ".join(claim["missing_witnesses"]) + "."
     if claim.get("requires_human_judgement", False):
