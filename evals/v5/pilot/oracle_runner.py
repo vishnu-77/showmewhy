@@ -85,6 +85,7 @@ def validate_oracle(
     workspace: Path,
     result_path: Path,
     setup_command: str | None = None,
+    execution_prefix: str | None = None,
     pre_fix_allowed_return_codes: set[int] | None = None,
 ) -> dict[str, Any]:
     task = _load_task(manifest_path, task_id)
@@ -100,6 +101,7 @@ def validate_oracle(
     pr_number = int(task["pr_number"])
     test_paths = list(task["upstream_test_paths"])
     command = str(task["reproducer_command"])
+    effective_command = f"{execution_prefix} {command}" if execution_prefix else command
 
     _run(["git", "fetch", "origin", base, accepted], cwd=workspace)
     pull_ref = f"refs/pull/{pr_number}/head"
@@ -133,6 +135,8 @@ def validate_oracle(
         "test_patch_sha256": patch_sha256,
         "test_paths": test_paths,
         "reproducer_command": command,
+        "execution_prefix": execution_prefix,
+        "effective_reproducer_command": effective_command,
         "setup_command": setup_command,
         "pre_fix_allowed_return_codes": sorted(pre_fix_allowed_return_codes) if pre_fix_allowed_return_codes else None,
         "pre_fix_setup": {"status": "not_run"},
@@ -152,7 +156,7 @@ def validate_oracle(
     _write_result(result_path, result)
 
     started = time.monotonic()
-    pre = _run(command, cwd=workspace, shell=True, check=False)
+    pre = _run(effective_command, cwd=workspace, shell=True, check=False)
     pre_seconds = round(time.monotonic() - started, 3)
     pre_is_allowed_failure = (
         pre.returncode != 0
@@ -193,7 +197,7 @@ def validate_oracle(
     _write_result(result_path, result)
 
     started = time.monotonic()
-    fixed = _run(command, cwd=workspace, shell=True, check=False)
+    fixed = _run(effective_command, cwd=workspace, shell=True, check=False)
     fixed_seconds = round(time.monotonic() - started, 3)
     result["accepted_fix"] = {
         "status": "pass" if fixed.returncode == 0 else "failure",
@@ -224,6 +228,13 @@ def main() -> None:
         help="Optional subject setup/install command run after both the pre-fix and accepted-fix checkouts.",
     )
     parser.add_argument(
+        "--execution-prefix",
+        help=(
+            "Optional environment launcher prepended to the manifest reproducer command, "
+            "for example a lockfile-backed uv run invocation."
+        ),
+    )
+    parser.add_argument(
         "--pre-fix-allowed-return-code",
         action="append",
         type=int,
@@ -243,6 +254,7 @@ def main() -> None:
             workspace=args.workspace,
             result_path=args.result,
             setup_command=args.setup_command,
+            execution_prefix=args.execution_prefix or None,
             pre_fix_allowed_return_codes=(
                 set(args.pre_fix_allowed_return_codes)
                 if args.pre_fix_allowed_return_codes
