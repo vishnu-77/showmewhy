@@ -201,7 +201,7 @@ Composition stays inside one command:
 /showmewhy /monitor /showmewhy /focus -- investigate why auth tests fail
 ~~~
 
-## Beyond code
+## Works beyond code
 
 The contract is domain-general. Only the witnesses change.
 
