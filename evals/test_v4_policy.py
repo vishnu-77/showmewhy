@@ -29,11 +29,20 @@ class V4PolicyTests(unittest.TestCase):
         self._write_run(cwd, run_id, complete=complete, compression=compression)
         return record_feedback(run_id, reopened=reopened, material_loss=material_loss, cwd=cwd)
 
-    def test_baseline_before_enough_feedback(self):
+    def test_cold_start_observes_without_replacing(self):
         with tempfile.TemporaryDirectory() as td:
             policy = recommend_policy(td)
             self.assertEqual(policy["target_tokens"], 700)
+            self.assertEqual(policy["mode"], "shadow")
+
+
+    def test_three_clean_feedback_samples_allow_baseline_replacement(self):
+        with tempfile.TemporaryDirectory() as td:
+            for idx in range(3):
+                self._feedback(td, idx, reopened=False, complete=True, compression=60.0)
+            policy = recommend_policy(td)
             self.assertEqual(policy["mode"], "replace")
+            self.assertEqual(policy["target_tokens"], 700)
 
     def test_low_reopen_complete_runs_allow_stronger_compression(self):
         with tempfile.TemporaryDirectory() as td:
@@ -67,6 +76,22 @@ class V4PolicyTests(unittest.TestCase):
             state = clear_safety_lock(td)
             self.assertFalse(state["safety_lock"])
             self.assertFalse(recommend_policy(td)["safety_lock"])
+
+
+    def test_safety_lock_cannot_be_bypassed_by_explicit_replace_mode(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._feedback(td, 1, material_loss=True)
+            raw = "\n".join("." * 120 for _ in range(40)) + "\n127 passed in 2s\n"
+            event = {
+                "cwd": td,
+                "tool_name": "Bash",
+                "tool_input": {"command": "pytest -q"},
+                "tool_response": {"stdout": raw, "stderr": ""},
+            }
+            output, digest = process_event(event, mode="replace", target_tokens=100)
+            self.assertEqual(output, {})
+            self.assertEqual(digest["policy"]["mode"], "shadow")
+            self.assertTrue(digest["policy"]["safety_lock"])
 
     def test_feedback_contains_metrics_not_task_content(self):
         with tempfile.TemporaryDirectory() as td:
