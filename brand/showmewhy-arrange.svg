@@ -1,119 +1,201 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-labelledby="title desc">
-  <title id="title">ShowMeWhy typewriter demo</title>
-  <desc id="desc">An agent claim types in, ShowMeWhy runs, and only one unresolved verification gap remains.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" role="img" aria-labelledby="title desc">
+  <title id="title">ShowMeWhy live verification demo</title>
+  <desc id="desc">An agent claim is shown, the user types /showmewhy, ShowMeWhy checks evidence, then surfaces one unresolved claim.</desc>
+
   <style>
     :root { color-scheme: light dark; }
+
     .bg { fill:#F7F7F4; }
+    .panel { fill:#F7F7F4; stroke:#D8D8D2; stroke-width:1.5; }
     .ink { fill:#0A0A0A; }
     .muted { fill:#666; }
     .rule { stroke:#D8D8D2; stroke-width:1.5; }
-    .mono { font: 22px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .small { font: 17px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .label { font: 700 15px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing:.7px; }
-    .l1,.l2,.l3,.l4,.scan,.result,.gap { clip-path: inset(0 100% 0 0); }
-    .l1 { animation:type1 8s steps(37,end) infinite; }
-    .l2 { animation:type2 8s steps(28,end) infinite; }
-    .l3 { animation:type3 8s steps(11,end) infinite; }
-    .scan { animation:scan 8s steps(18,end) infinite; }
-    .result { animation:result 8s steps(20,end) infinite; }
-    .gap { animation:gap 8s steps(29,end) infinite; }
-    .cursor1,.cursor2,.cursor3 {
-      opacity:0;
-      animation:blink 0.75s step-end infinite;
-    }
-    .cursor1 { animation-name:cursor1,blink; animation-duration:8s,.75s; animation-timing-function:linear,step-end; animation-iteration-count:infinite,infinite; }
-    .cursor2 { animation-name:cursor2,blink; animation-duration:8s,.75s; animation-timing-function:linear,step-end; animation-iteration-count:infinite,infinite; }
-    .cursor3 { animation-name:cursor3,blink; animation-duration:8s,.75s; animation-timing-function:linear,step-end; animation-iteration-count:infinite,infinite; }
+    .accent { fill:#9A641F; }
 
-    @keyframes type1 {
-      0%,5% { clip-path:inset(0 100% 0 0) }
-      27%,88% { clip-path:inset(0 0 0 0) }
-      100% { clip-path:inset(0 100% 0 0) }
+    .sans {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    @keyframes type2 {
-      0%,28% { clip-path:inset(0 100% 0 0) }
-      42%,88% { clip-path:inset(0 0 0 0) }
-      100% { clip-path:inset(0 100% 0 0) }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
-    @keyframes type3 {
-      0%,44% { clip-path:inset(0 100% 0 0) }
-      54%,88% { clip-path:inset(0 0 0 0) }
-      100% { clip-path:inset(0 100% 0 0) }
+    .label { font-size:14px; font-weight:700; letter-spacing:.8px; }
+    .body { font-size:20px; }
+    .small { font-size:16px; }
+    .cmd { font-size:21px; }
+    .result-title { font-size:17px; font-weight:700; letter-spacing:.45px; }
+
+    .scene {
+      animation: scene 10s ease-in-out infinite;
+      transform-origin: center;
     }
-    @keyframes scan {
-      0%,56% { clip-path:inset(0 100% 0 0) }
-      64%,69% { clip-path:inset(0 0 0 0) }
-      72%,100% { clip-path:inset(0 100% 0 0) }
+
+    .cmd-text {
+      clip-path: inset(0 100% 0 0);
+      animation: typeCommand 10s steps(12,end) infinite;
     }
-    @keyframes result {
-      0%,70% { clip-path:inset(0 100% 0 0) }
-      78%,94% { clip-path:inset(0 0 0 0) }
-      100% { clip-path:inset(0 100% 0 0) }
+
+    .cmd-cursor {
+      opacity:0;
+      transform:translateX(0);
+      animation:
+        moveCursor 10s steps(12,end) infinite,
+        cursorVisibility 10s linear infinite,
+        blink .72s step-end infinite;
     }
-    @keyframes gap {
-      0%,77% { clip-path:inset(0 100% 0 0) }
-      87%,94% { clip-path:inset(0 0 0 0) }
-      100% { clip-path:inset(0 100% 0 0) }
+
+    .scan {
+      opacity:0;
+      animation: scanVisibility 10s linear infinite;
     }
-    @keyframes cursor1 {
-      0%,4%,28%,100% { opacity:0 }
-      5%,27% { opacity:1 }
+
+    .dot1 { animation: dot1 1.05s ease-in-out infinite; }
+    .dot2 { animation: dot2 1.05s ease-in-out infinite; }
+    .dot3 { animation: dot3 1.05s ease-in-out infinite; }
+
+    .result-card {
+      opacity:0;
+      transform:translateY(10px);
+      animation: resultCard 10s cubic-bezier(.2,.7,.2,1) infinite;
     }
-    @keyframes cursor2 {
-      0%,27%,43%,100% { opacity:0 }
-      28%,42% { opacity:1 }
+
+    .result-row-1 {
+      opacity:0;
+      transform:translateY(5px);
+      animation: resultRow1 10s ease-out infinite;
     }
-    @keyframes cursor3 {
-      0%,43%,55%,100% { opacity:0 }
-      44%,54% { opacity:1 }
+
+    .result-row-2 {
+      opacity:0;
+      transform:translateY(5px);
+      animation: resultRow2 10s ease-out infinite;
     }
+
+    @keyframes scene {
+      0%,90% { opacity:1; }
+      96%,100% { opacity:0; }
+    }
+
+    @keyframes typeCommand {
+      0%,12% { clip-path:inset(0 100% 0 0); }
+      29%,90% { clip-path:inset(0 0 0 0); }
+      96%,100% { clip-path:inset(0 100% 0 0); }
+    }
+
+    @keyframes moveCursor {
+      0%,12% { transform:translateX(0); }
+      29%,90% { transform:translateX(165px); }
+      96%,100% { transform:translateX(0); }
+    }
+
+    @keyframes cursorVisibility {
+      0%,11%,35%,100% { opacity:0; }
+      12%,34% { opacity:1; }
+    }
+
     @keyframes blink {
-      0%,49% { visibility:visible }
-      50%,100% { visibility:hidden }
+      0%,48% { visibility:visible; }
+      49%,100% { visibility:hidden; }
+    }
+
+    @keyframes scanVisibility {
+      0%,33% { opacity:0; }
+      36%,46% { opacity:1; }
+      49%,100% { opacity:0; }
+    }
+
+    @keyframes dot1 {
+      0%,100% { opacity:.25; }
+      20%,45% { opacity:1; }
+    }
+    @keyframes dot2 {
+      0%,20%,100% { opacity:.25; }
+      40%,65% { opacity:1; }
+    }
+    @keyframes dot3 {
+      0%,40%,100% { opacity:.25; }
+      60%,85% { opacity:1; }
+    }
+
+    @keyframes resultCard {
+      0%,46% { opacity:0; transform:translateY(10px); }
+      52%,90% { opacity:1; transform:translateY(0); }
+      96%,100% { opacity:0; transform:translateY(0); }
+    }
+
+    @keyframes resultRow1 {
+      0%,52% { opacity:0; transform:translateY(5px); }
+      58%,90% { opacity:1; transform:translateY(0); }
+      96%,100% { opacity:0; transform:translateY(0); }
+    }
+
+    @keyframes resultRow2 {
+      0%,59% { opacity:0; transform:translateY(5px); }
+      66%,90% { opacity:1; transform:translateY(0); }
+      96%,100% { opacity:0; transform:translateY(0); }
     }
 
     @media (prefers-color-scheme: dark) {
-      .bg { fill:#0D1218; }
+      .bg,.panel { fill:#0D1218; }
+      .panel,.rule { stroke:#30363D; }
       .ink { fill:#F7F7F4; }
       .muted { fill:#A4A7AA; }
-      .rule { stroke:#30363D; }
+      .accent { fill:#D7A45D; }
     }
+
     @media (prefers-reduced-motion: reduce) {
-      .l1,.l2,.l3,.scan,.result,.gap { animation:none; clip-path:inset(0 0 0 0); }
-      .cursor1,.cursor2,.cursor3 { display:none; }
-      .scan { display:none; }
+      .scene,.cmd-text,.cmd-cursor,.scan,.result-card,.result-row-1,.result-row-2,
+      .dot1,.dot2,.dot3 {
+        animation:none;
+      }
+      .scene { opacity:1; }
+      .cmd-text { clip-path:inset(0 0 0 0); }
+      .cmd-cursor,.scan { display:none; }
+      .result-card,.result-row-1,.result-row-2 {
+        opacity:1;
+        transform:none;
+      }
     }
   </style>
 
-  <rect class="bg" width="960" height="300"/>
-  <line class="rule" x1="28" y1="28" x2="932" y2="28"/>
-  <text class="muted label" x="32" y="56">AGENT</text>
+  <rect class="bg" width="960" height="340"/>
 
-  <g class="l1">
-    <text class="ink mono" x="32" y="91">Done. All status states render correctly.</text>
-  </g>
-  <rect class="ink cursor1" x="490" y="69" width="2" height="28"/>
+  <g class="scene">
+    <!-- Agent claim: visible immediately so the demo starts with context, not typing theatre. -->
+    <rect class="panel" x="28" y="24" width="904" height="104"/>
+    <text class="muted sans label" x="48" y="51">AGENT</text>
+    <text class="ink sans body" x="48" y="82">Done. All status states render correctly.</text>
+    <text class="muted sans small" x="48" y="108">Decorative dots removed · header and footer unchanged</text>
 
-  <g class="l2">
-    <text class="muted small" x="32" y="126">Decorative dots removed. Header clean.</text>
-  </g>
-  <rect class="ink cursor2" x="454" y="108" width="2" height="23"/>
+    <!-- User action: this is the only typed element. -->
+    <text class="muted sans label" x="48" y="162">YOU</text>
+    <g class="cmd-text">
+      <text class="ink mono cmd" x="48" y="194">&gt; /showmewhy</text>
+    </g>
+    <rect class="ink cmd-cursor" x="52" y="174" width="2" height="25"/>
 
-  <line class="rule" x1="28" y1="149" x2="932" y2="149"/>
+    <!-- Short processing beat. -->
+    <g class="scan">
+      <text class="muted mono small" x="48" y="226">checking evidence</text>
+      <circle class="muted dot1" cx="202" cy="221" r="2.2"/>
+      <circle class="muted dot2" cx="212" cy="221" r="2.2"/>
+      <circle class="muted dot3" cx="222" cy="221" r="2.2"/>
+    </g>
 
-  <g class="l3">
-    <text class="ink mono" x="32" y="184">&gt; /showmewhy</text>
-  </g>
-  <rect class="ink cursor3" x="188" y="162" width="2" height="28"/>
+    <!-- Stable result state. -->
+    <g class="result-card">
+      <rect class="panel" x="28" y="218" width="904" height="98"/>
+      <text class="ink sans result-title" x="48" y="246">5 VERIFIED</text>
+      <text class="accent sans result-title" x="156" y="246">1 NEEDS YOU</text>
 
-  <g class="scan">
-    <text class="muted small" x="32" y="219">checking evidence…</text>
-  </g>
+      <g class="result-row-1">
+        <text class="ink sans body" x="48" y="278">DONE renders green in the actual UI</text>
+        <text class="muted sans small" x="460" y="278">No rendered witness</text>
+      </g>
 
-  <g class="result">
-    <text class="ink label" x="32" y="222">5 VERIFIED · 1 NEEDS YOU</text>
-  </g>
-  <g class="gap">
-    <text class="ink mono" x="32" y="258">DONE state was never rendered.</text>
+      <g class="result-row-2">
+        <text class="muted sans small" x="48" y="301">DO NEXT</text>
+        <text class="ink sans small" x="128" y="301">Trigger DONE and inspect the indicator.</text>
+      </g>
+    </g>
   </g>
 </svg>
