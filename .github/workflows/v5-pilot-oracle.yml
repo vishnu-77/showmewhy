@@ -29,7 +29,7 @@ jobs:
             repository: pydantic/pydantic
             base: d4e72faf5749257cd7feeb27bc7ca56c423942b6
             setup: ""
-            execution_prefix: "uv run --frozen --no-default-groups --group dev --"
+            execution_prefix: "uv run --frozen --no-default-groups --group dev --reinstall-package pydantic --reinstall-package pydantic-core --"
             pre_fix_rc: 1
           - task_id: pytest-warning-module-attribution
             repository: pytest-dev/pytest
