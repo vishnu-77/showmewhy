@@ -33,6 +33,7 @@ jobs:
             repository: pytest-dev/pytest
             base: f1211ba21d1df2f55cf2ba1523b9d7b6c6a9ef56
             setup: python -m pip install -e . hypothesis
+            pre_fix_rc: 1
           - task_id: fastapi-sse-line-splitting
             repository: fastapi/fastapi
             base: 31ce3cb8d73a6e20221315a90dd98a117f0101a0
@@ -41,7 +42,8 @@ jobs:
           - task_id: fastapi-stream-status-code
             repository: fastapi/fastapi
             base: b1346bb142c8154950953255eea535e5a83d62eb
-            setup: python -m pip install -e . pytest httpx inline-snapshot
+            setup: python -m pip install -e . pytest httpx httpx2 inline-snapshot pytest-timeout
+            pre_fix_rc: 1
 
     steps:
       - name: Checkout ShowMeWhy
