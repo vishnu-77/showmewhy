@@ -6,6 +6,12 @@
 
 Turn agent output into the smallest remaining verification surface.
 
+**Most tools show you more. ShowMeWhy removes what you no longer need to review.**
+
+<p align="center">
+  <img src="brand/showmewhy-arrange.svg" alt="ShowMeWhy arranges noisy agent output into a verification surface" width="760">
+</p>
+
 <a href="LICENSE"><img src="https://img.shields.io/github/license/vishnu-77/showmewhy?style=flat" alt="License"></a>
 <a href="https://github.com/vishnu-77/showmewhy/actions/workflows/test.yml"><img src="https://github.com/vishnu-77/showmewhy/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
 
@@ -19,6 +25,13 @@ Claude Code:
 /plugin marketplace add vishnu-77/showmewhy
 /plugin install showmewhy@showmewhy
 /reload-plugins
+~~~
+
+Shell equivalent:
+
+~~~bash
+claude plugin marketplace add vishnu-77/showmewhy
+claude plugin install showmewhy@showmewhy
 ~~~
 
 Then:
@@ -207,6 +220,8 @@ The contract is domain-general. Only the witnesses change.
 - **Provenance:** retained evidence and runs can receive stable `evidence://...` and `run://...` addresses.
 - **Inspectable contracts:** deterministic verifier, schemas and evaluation code are in the repository.
 
+Runtime state lives **outside the consumer repository**.
+
 Runtime details: [`runtime/README.md`](runtime/README.md).
 
 ## Evaluation
@@ -229,6 +244,8 @@ Primary measurements:
 See [`evals/v5/`](evals/v5/).
 
 **No effectiveness number is claimed here until the paired evaluation produces one.**
+
+Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases).
 
 Run the deterministic suite:
 
