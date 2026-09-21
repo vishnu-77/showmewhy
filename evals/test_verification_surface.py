@@ -142,5 +142,96 @@ class VerificationSurfaceTests(unittest.TestCase):
             module.analyse(manifest)
 
 
+    def test_manifest_requires_all_schema_required_claim_fields(self):
+        manifest = {
+            "result": "Claim",
+            "claims": [{
+                "id": "C1",
+                "text": "Tests pass",
+                "obligation": "rerun tests",
+                "required_witnesses": ["execution"],
+                "witnesses": [],
+                "next_action": "Run tests.",
+            }],
+        }
+        with self.assertRaisesRegex(module.VerificationError, "missing required field"):
+            module.analyse(manifest)
+
+    def test_manifest_rejects_duplicate_required_witness_kinds(self):
+        manifest = {
+            "result": "Claim",
+            "claims": [{
+                "id": "C1",
+                "text": "Migration is safe",
+                "obligation": "exercise boundary",
+                "risk": "high",
+                "required_witnesses": ["boundary", "boundary"],
+                "witnesses": [],
+                "next_action": "Exercise boundary.",
+            }],
+        }
+        with self.assertRaisesRegex(module.VerificationError, "unique witness kinds"):
+            module.analyse(manifest)
+
+    def test_manifest_rejects_fields_outside_canonical_schema(self):
+        manifest = {
+            "result": "Claim",
+            "claims": [{
+                "id": "C1",
+                "text": "Tests pass",
+                "obligation": "rerun tests",
+                "risk": "medium",
+                "required_witnesses": ["execution"],
+                "witnesses": [{
+                    "kind": "execution",
+                    "source": "pytest",
+                    "outcome": "supports",
+                    "confidence": "high",
+                }],
+                "next_action": "No action.",
+            }],
+        }
+        with self.assertRaisesRegex(module.VerificationError, "unsupported field"):
+            module.analyse(manifest)
+
+    def test_manifest_rejects_non_boolean_control_fields(self):
+        manifest = {
+            "result": "Claim",
+            "claims": [{
+                "id": "C1",
+                "text": "Tests pass",
+                "obligation": "rerun tests",
+                "risk": "medium",
+                "material": "yes",
+                "required_witnesses": ["execution"],
+                "witnesses": [],
+                "next_action": "Run tests.",
+            }],
+        }
+        with self.assertRaisesRegex(module.VerificationError, "material must be a boolean"):
+            module.analyse(manifest)
+
+    def test_refuted_surface_uses_observable_refuting_witness_not_freeform_reason(self):
+        manifest = {
+            "result": "The universal claim is false.",
+            "claims": [{
+                "id": "C1",
+                "text": "All users require MFA",
+                "obligation": "search for exceptions",
+                "risk": "high",
+                "required_witnesses": ["source", "counterexample"],
+                "witnesses": [
+                    {"kind": "source", "source": "policy:4.2", "outcome": "supports"},
+                    {"kind": "counterexample", "source": "policy:7.1 legacy bypass", "outcome": "refutes"},
+                ],
+                "unresolved_reason": "Agent-provided prose must not hide the refuting witness.",
+                "next_action": "Resolve the exception.",
+            }],
+        }
+        rendered = module.render_default(module.analyse(manifest))
+        self.assertIn("Refuted by policy:7.1 legacy bypass.", rendered)
+        self.assertNotIn("Agent-provided prose must not hide", rendered)
+
+
 if __name__ == "__main__":
     unittest.main()
