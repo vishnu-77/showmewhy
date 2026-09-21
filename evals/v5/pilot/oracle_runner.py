@@ -85,6 +85,7 @@ def validate_oracle(
     workspace: Path,
     result_path: Path,
     setup_command: str | None = None,
+    pre_fix_allowed_return_codes: set[int] | None = None,
 ) -> dict[str, Any]:
     task = _load_task(manifest_path, task_id)
     workspace = workspace.resolve()
@@ -133,6 +134,7 @@ def validate_oracle(
         "test_paths": test_paths,
         "reproducer_command": command,
         "setup_command": setup_command,
+        "pre_fix_allowed_return_codes": sorted(pre_fix_allowed_return_codes) if pre_fix_allowed_return_codes else None,
         "pre_fix_setup": {"status": "not_run"},
         "pre_fix": {"status": "not_run"},
         "accepted_fix_setup": {"status": "not_run"},
@@ -152,8 +154,21 @@ def validate_oracle(
     started = time.monotonic()
     pre = _run(command, cwd=workspace, shell=True, check=False)
     pre_seconds = round(time.monotonic() - started, 3)
+    pre_is_allowed_failure = (
+        pre.returncode != 0
+        and (
+            pre_fix_allowed_return_codes is None
+            or pre.returncode in pre_fix_allowed_return_codes
+        )
+    )
     result["pre_fix"] = {
-        "status": "expected_failure" if pre.returncode != 0 else "unexpected_pass",
+        "status": (
+            "unexpected_pass"
+            if pre.returncode == 0
+            else "expected_failure"
+            if pre_is_allowed_failure
+            else "invalid_failure"
+        ),
         "return_code": pre.returncode,
         "seconds": pre_seconds,
         "output_tail": pre.stdout[-12000:],
@@ -162,6 +177,13 @@ def validate_oracle(
     if pre.returncode == 0:
         raise OracleValidationError(
             "pre-fix checkout passed the accepted regression test; task is not a valid failing oracle"
+        )
+    if not pre_is_allowed_failure:
+        expected = ", ".join(str(code) for code in sorted(pre_fix_allowed_return_codes or set()))
+        raise OracleValidationError(
+            f"pre-fix command failed with non-oracle exit code {pre.returncode}; "
+            f"expected one of [{expected}]. This indicates collection/config/setup failure "
+            "rather than the intended regression witness."
         )
 
     _run(["git", "reset", "--hard"], cwd=workspace)
@@ -179,7 +201,7 @@ def validate_oracle(
         "seconds": fixed_seconds,
         "output_tail": fixed.stdout[-12000:],
     }
-    result["oracle_validated"] = pre.returncode != 0 and fixed.returncode == 0
+    result["oracle_validated"] = pre_is_allowed_failure and fixed.returncode == 0
     _write_result(result_path, result)
 
     if fixed.returncode != 0:
@@ -201,6 +223,17 @@ def main() -> None:
         "--setup-command",
         help="Optional subject setup/install command run after both the pre-fix and accepted-fix checkouts.",
     )
+    parser.add_argument(
+        "--pre-fix-allowed-return-code",
+        action="append",
+        type=int,
+        dest="pre_fix_allowed_return_codes",
+        help=(
+            "Return code that represents the intended pre-fix regression failure. "
+            "Repeat for multiple accepted codes. Infrastructure/configuration exit codes "
+            "must not be accepted as oracle failures."
+        ),
+    )
     args = parser.parse_args()
 
     try:
@@ -210,6 +243,11 @@ def main() -> None:
             workspace=args.workspace,
             result_path=args.result,
             setup_command=args.setup_command,
+            pre_fix_allowed_return_codes=(
+                set(args.pre_fix_allowed_return_codes)
+                if args.pre_fix_allowed_return_codes
+                else None
+            ),
         )
     except OracleValidationError as exc:
         print(f"oracle validation failed: {exc}", file=sys.stderr)
