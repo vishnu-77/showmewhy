@@ -131,6 +131,34 @@ class V5OracleRunnerTests(unittest.TestCase):
             self.assertEqual(persisted["pre_fix"]["status"], "invalid_failure")
             self.assertFalse(persisted["oracle_validated"])
 
+    def test_execution_prefix_wraps_manifest_reproducer(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _, subject, base, accepted = self._fixture(root)
+            manifest = root / "manifest.json"
+            result_path = root / "evidence" / "result.json"
+            self._manifest(manifest, base=base, accepted=accepted)
+
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            data["tasks"][0]["reproducer_command"] = "test_behavior"
+            manifest.write_text(json.dumps(data), encoding="utf-8")
+            prefix = f"{subprocess.list2cmdline([sys.executable])} -m"
+
+            result = validate_oracle(
+                manifest_path=manifest,
+                task_id="fixture-task",
+                workspace=subject,
+                result_path=result_path,
+                execution_prefix=prefix,
+                pre_fix_allowed_return_codes={1},
+            )
+
+            self.assertTrue(result["oracle_validated"])
+            self.assertEqual(result["execution_prefix"], prefix)
+            self.assertEqual(
+                result["effective_reproducer_command"], f"{prefix} test_behavior"
+            )
+
     def test_result_evidence_must_live_outside_subject_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
