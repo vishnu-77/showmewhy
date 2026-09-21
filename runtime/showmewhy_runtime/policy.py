@@ -107,11 +107,11 @@ def recommend_policy(cwd: str | Path | None = None) -> dict[str, Any]:
     if len(events) < 3:
         return {
             "version": "4.0",
-            "mode": "replace",
+            "mode": "shadow",
             "target_tokens": BASELINE_TARGET,
             "safety_lock": False,
             "samples": len(events),
-            "reason": "Insufficient verified feedback; use the baseline context budget.",
+            "reason": "Insufficient verified feedback; observe compression candidates without replacing active context.",
         }
 
     reopen_rate = sum(bool(e.get("reopened")) for e in events) / len(events)

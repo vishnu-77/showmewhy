@@ -101,6 +101,78 @@ jobs:
           print(f'accepted: atomic plugin Skill + runtime at {skills[0]}')
           PY
 
+      - name: Exercise installed ShowMeWhy hook
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          plugin_root = Path.home() / '.claude' / 'plugins'
+          hooks = list(plugin_root.rglob('showmewhy-post-tool-use.py'))
+          if not hooks:
+              raise SystemExit('Installed ShowMeWhy PostToolUse hook was not found')
+
+          state_home = tempfile.mkdtemp(prefix='showmewhy-acceptance-')
+          event = {
+              'cwd': os.environ['GITHUB_WORKSPACE'],
+              'session_id': 'acceptance-session',
+              'tool_use_id': 'acceptance-tool',
+              'tool_name': 'Bash',
+              'tool_input': {'command': 'pytest -q'},
+              'tool_response': {
+                  'stdout': ('.' * 5000) + '\n127 passed in 1.0s\n',
+                  'stderr': '',
+                  'interrupted': False,
+                  'isImage': False,
+              },
+          }
+
+          env = os.environ.copy()
+          env['SHOWMEWHY_HOME'] = state_home
+
+          cold = subprocess.run(
+              [sys.executable, str(hooks[0])],
+              input=json.dumps(event),
+              text=True,
+              capture_output=True,
+              env=env,
+              check=True,
+          )
+          cold_output = json.loads(cold.stdout)
+          if cold_output != {}:
+              raise SystemExit(f'Cold-start hook must stay in shadow mode, got: {cold_output}')
+
+          if not list(Path(state_home).rglob('runs/*.json')):
+              raise SystemExit('Cold-start hook did not persist an execution digest')
+          if not list(Path(state_home).rglob('evidence/*.json')):
+              raise SystemExit('Cold-start hook did not persist raw evidence')
+
+          env['SHOWMEWHY_MODE'] = 'replace'
+          env['SHOWMEWHY_CONTEXT_BUDGET_TOKENS'] = '100'
+          explicit = subprocess.run(
+              [sys.executable, str(hooks[0])],
+              input=json.dumps(event),
+              text=True,
+              capture_output=True,
+              env=env,
+              check=True,
+          )
+          explicit_output = json.loads(explicit.stdout)
+          hook_output = explicit_output.get('hookSpecificOutput', {})
+          if 'updatedToolOutput' not in hook_output:
+              raise SystemExit(
+                  'Explicit replace mode did not produce updatedToolOutput for a safe complete parser'
+              )
+
+          print(f'accepted: installed hook shadowed cold-start and replaced only on explicit safe mode: {hooks[0]}')
+          PY
+
   installer-posix:
     name: Installer acceptance (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

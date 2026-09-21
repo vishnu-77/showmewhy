@@ -1,5 +1,5 @@
 {
-  "description": "ShowMeWhy V2 context compression for verbose Bash tool output",
+  "description": "ShowMeWhy evidence retention and fail-open context compression for verbose Bash tool output",
   "hooks": {
     "PostToolUse": [
       {

@@ -66,13 +66,14 @@ def compress_text(text: str, *, target_tokens: int = 700) -> CompressionResult:
             if findings:
                 body += ["Key failures:"] + [f"- {x}" for x in findings]
             body.append("Raw details retained by ShowMeWhy.")
-            return CompressionResult("test", "\n".join(body), "failed" if failed else "passed", findings, {"failed": failed, "passed": passed, "raw_tokens": raw_tokens}, "pytest", "high", True)
+            return CompressionResult("test", "\n".join(body), "failed" if failed else "passed", findings, {"failed": failed, "passed": passed, "raw_tokens": raw_tokens}, "pytest", "high", failed == 0 and not findings)
 
     for line in reversed(lines):
         match = PYTEST_PASS.search(line)
         if match and "failed" not in joined.lower():
             passed = int(match.group("passed"))
-            return CompressionResult("test", f"pytest: {passed} passed. Raw details retained by ShowMeWhy.", "passed", [], {"passed": passed, "raw_tokens": raw_tokens}, "pytest", "high", True)
+            findings = _compact_findings(lines)
+            return CompressionResult("test", f"pytest: {passed} passed. Raw details retained by ShowMeWhy.", "passed", findings, {"passed": passed, "raw_tokens": raw_tokens}, "pytest", "high", not findings)
 
     for line in reversed(lines):
         match = JEST_SUMMARY.search(line)
@@ -85,7 +86,7 @@ def compress_text(text: str, *, target_tokens: int = 700) -> CompressionResult:
             if findings:
                 body += ["Key failures:"] + [f"- {x}" for x in findings]
             body.append("Raw details retained by ShowMeWhy.")
-            return CompressionResult("test", "\n".join(body), "failed" if failed else "passed", findings, {"failed": failed, "passed": passed, "total": total, "raw_tokens": raw_tokens}, "jest-vitest", "high", True)
+            return CompressionResult("test", "\n".join(body), "failed" if failed else "passed", findings, {"failed": failed, "passed": passed, "total": total, "raw_tokens": raw_tokens}, "jest-vitest", "high", failed == 0 and not findings)
 
     ts_errors = []
     for line in lines:
@@ -97,7 +98,7 @@ def compress_text(text: str, *, target_tokens: int = 700) -> CompressionResult:
         body = [f"TypeScript: {len(ts_errors)} error(s)"] + [f"- {x}" for x in shown]
         if len(ts_errors) > len(shown):
             body.append(f"- … {len(ts_errors)-len(shown)} more in raw evidence")
-        return CompressionResult("build", "\n".join(body), "failed", shown, {"errors": len(ts_errors), "raw_tokens": raw_tokens}, "tsc", "high", len(ts_errors) <= len(shown))
+        return CompressionResult("build", "\n".join(body), "failed", shown, {"errors": len(ts_errors), "raw_tokens": raw_tokens}, "tsc", "high", False)
 
     lint = []
     for line in lines:
@@ -111,7 +112,7 @@ def compress_text(text: str, *, target_tokens: int = 700) -> CompressionResult:
         body = [f"lint: {errors} error(s), {warnings} warning(s)"] + [f"- {x}" for x in shown]
         if len(lint) > len(shown):
             body.append(f"- … {len(lint)-len(shown)} more in raw evidence")
-        return CompressionResult("lint", "\n".join(body), "failed" if errors else "warning", shown, {"errors": errors, "warnings": warnings, "raw_tokens": raw_tokens}, "lint", "medium", len(lint) <= len(shown))
+        return CompressionResult("lint", "\n".join(body), "failed" if errors else "warning", shown, {"errors": errors, "warnings": warnings, "raw_tokens": raw_tokens}, "lint", "medium", False)
 
     if "diff --git " in joined:
         files = [line[11:].split(" b/", 1)[0] for line in lines if line.startswith("diff --git a/")]
@@ -121,7 +122,7 @@ def compress_text(text: str, *, target_tokens: int = 700) -> CompressionResult:
         body = [f"git diff: {len(files)} file(s), +{additions}/-{deletions}"] + [f"- {x}" for x in listed]
         if len(files) > len(listed):
             body.append(f"- … {len(files)-len(listed)} more file(s) in raw evidence")
-        return CompressionResult("git", "\n".join(body), "changed", listed, {"files": len(files), "additions": additions, "deletions": deletions, "raw_tokens": raw_tokens}, "git-diff", "high", True)
+        return CompressionResult("git", "\n".join(body), "changed", listed, {"files": len(files), "additions": additions, "deletions": deletions, "raw_tokens": raw_tokens}, "git-diff", "high", False)
 
     findings = _compact_findings(lines)
     head = [x for x in lines[:8] if x.strip()]
@@ -140,8 +141,10 @@ def response_text(tool_name: str, response: Any) -> str | None:
     if not isinstance(response, dict):
         return None
     if tool_name == "Bash" and isinstance(response.get("stdout"), str):
-        stderr = response.get("stderr") if isinstance(response.get("stderr"), str) else ""
-        return response["stdout"] + ("\n" + stderr if stderr else "")
+        # Replacement only mutates stdout. Parse exactly the field we may replace;
+        # stderr remains independently visible and must never be folded into a
+        # digest that is then copied back into stdout.
+        return response["stdout"]
     return None
 
 

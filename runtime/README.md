@@ -23,7 +23,9 @@ This keeps `git status` clean: ShowMeWhy does not require `.gitignore` changes i
 
 ## Context compression
 
-Claude Code `Bash` results above the active context target can be compacted after raw output is stored under the project's global `evidence/` namespace. Unsupported or short output fails open.
+Claude Code `Bash` results above the active context target can be compacted after raw output is stored under the project's global `evidence/` namespace. Unsupported, lossy or short output fails open.
+
+Cold-start mode is `shadow`: ShowMeWhy records candidate digests and provenance but does **not** replace active tool output until sufficient feedback exists or the user explicitly requests `SHOWMEWHY_MODE=replace`. Failed test output, compiler/lint failures and patch bodies are treated as incomplete representations and remain visible.
 
 ## Provenance
 
@@ -48,7 +50,7 @@ Policy bands:
 
 | Condition | Mode | Target |
 |---|---|---:|
-| fewer than 3 feedback samples | replace | 700 |
+| fewer than 3 feedback samples | shadow | 700 |
 | low reopen + ≥90% complete + useful compression | replace | 500 |
 | reopen ≥35% or completeness <75% | replace | 1,100 |
 | any reported material loss | shadow | 1,200 |
@@ -59,4 +61,4 @@ Material loss creates a sticky safety lock. It can only be cleared explicitly:
 PYTHONPATH=runtime python3 -m showmewhy_runtime.cli policy-unlock
 ```
 
-Explicit `SHOWMEWHY_MODE` and `SHOWMEWHY_CONTEXT_BUDGET_TOKENS` values override the adaptive recommendation.
+Explicit `SHOWMEWHY_MODE` and `SHOWMEWHY_CONTEXT_BUDGET_TOKENS` values can override the adaptive recommendation, but a sticky material-loss safety lock always forces `shadow` until it is explicitly cleared. Invalid context-budget values fail open to the policy target.

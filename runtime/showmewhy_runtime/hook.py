@@ -12,7 +12,36 @@ from .policy import recommend_policy
 from .provenance import build_graph, persist_graph
 
 
-def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode: str | None = None, target_tokens: int | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
+VALID_MODES = {"replace", "shadow"}
+DEFAULT_FAIL_OPEN_TARGET = 1200
+
+
+def _positive_int(value: Any, fallback: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return parsed if parsed > 0 else fallback
+
+
+def _effective_mode(requested: str | None, policy: dict[str, Any]) -> str:
+    # A sticky safety lock is intentionally stronger than configuration.
+    if bool(policy.get("safety_lock")):
+        return "shadow"
+    candidate = (requested or "").strip().lower()
+    if candidate in VALID_MODES:
+        return candidate
+    fallback = str(policy.get("mode") or "shadow").lower()
+    return fallback if fallback in VALID_MODES else "shadow"
+
+
+def process_event(
+    event: dict[str, Any],
+    *,
+    cwd: str | Path | None = None,
+    mode: str | None = None,
+    target_tokens: int | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
     tool_name = str(event.get("tool_name") or "")
     response = event.get("tool_response")
     text = response_text(tool_name, response)
@@ -20,25 +49,61 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
         return {}, None
 
     base_cwd = cwd or event.get("cwd") or "."
-    policy = recommend_policy(base_cwd)
+
+    try:
+        policy = recommend_policy(base_cwd)
+    except Exception:
+        # Policy state must never make the hook fail closed on the host tool.
+        policy = {
+            "mode": "shadow",
+            "target_tokens": DEFAULT_FAIL_OPEN_TARGET,
+            "safety_lock": True,
+            "samples": 0,
+            "reason": "Policy state could not be read; replacement was disabled.",
+        }
+
     env_mode = os.getenv("SHOWMEWHY_MODE")
     env_target = os.getenv("SHOWMEWHY_CONTEXT_BUDGET_TOKENS")
-    effective_mode = (mode or env_mode or policy["mode"]).lower()
-    effective_target = target_tokens or (int(env_target) if env_target else int(policy["target_tokens"]))
+    effective_mode = _effective_mode(mode or env_mode, policy)
+
+    policy_target = _positive_int(policy.get("target_tokens"), DEFAULT_FAIL_OPEN_TARGET)
+    if target_tokens is not None:
+        effective_target = _positive_int(target_tokens, policy_target)
+    elif env_target is not None:
+        effective_target = _positive_int(env_target, policy_target)
+    else:
+        effective_target = policy_target
 
     if estimate_tokens(text) <= effective_target:
         return {}, None
 
     store = EvidenceStore(base_cwd)
     try:
-        raw_ref = store.put(tool_name=tool_name, tool_input=event.get("tool_input"), tool_response=response, session_id=event.get("session_id"))
+        raw_ref = store.put(
+            tool_name=tool_name,
+            tool_input=event.get("tool_input"),
+            tool_response=response,
+            session_id=event.get("session_id"),
+        )
     except Exception:
         return {}, None
 
-    result = compress_text(text, target_tokens=effective_target)
-    if result.text == text:
+    try:
+        result = compress_text(text, target_tokens=effective_target)
+        if result.text == text:
+            return {}, None
+        digest = build_digest(
+            tool_name=tool_name,
+            evidence_ref=raw_ref,
+            raw_text=text,
+            result=result,
+            session_id=event.get("session_id"),
+            tool_use_id=event.get("tool_use_id"),
+        )
+    except Exception:
+        # Raw evidence is already retained; preserve the original visible output.
         return {}, None
-    digest = build_digest(tool_name=tool_name, evidence_ref=raw_ref, raw_text=text, result=result, session_id=event.get("session_id"), tool_use_id=event.get("tool_use_id"))
+
     digest["policy"] = {
         "mode": effective_mode,
         "target_tokens": effective_target,
@@ -57,8 +122,18 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
         digest["provenance_ref"] = f"provenance://{graph['graph_id']}"
         digest["provenance_confidence"] = graph["confidence"]
     except Exception:
-        digest["caveats"].append("Provenance graph generation failed; inspect raw evidence directly.")
-    persist_digest(digest, base_cwd)
+        digest["caveats"].append(
+            "Provenance graph generation failed; inspect raw evidence directly."
+        )
+
+    try:
+        persist_digest(digest, base_cwd)
+    except Exception:
+        # Never replace context unless the digest itself was durably recorded.
+        digest["caveats"].append(
+            "Digest persistence failed; original tool output was preserved in the active context."
+        )
+        return {}, digest
 
     if effective_mode == "shadow":
         return {}, digest
@@ -67,7 +142,16 @@ def process_event(event: dict[str, Any], *, cwd: str | Path | None = None, mode:
     if effective_mode != "replace":
         return {}, digest
 
-    replacement = replace_response_text(tool_name, response, result.text + f"\nRaw evidence: {raw_ref}")
+    replacement = replace_response_text(
+        tool_name,
+        response,
+        result.text + f"\nRaw evidence: {raw_ref}",
+    )
     if replacement is None:
         return {}, digest
-    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "updatedToolOutput": replacement}}, digest
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "updatedToolOutput": replacement,
+        }
+    }, digest
