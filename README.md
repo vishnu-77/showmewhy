@@ -105,6 +105,74 @@ Run a pre-migration mobile token through the new verifier.
 
 **Most tools show you more. ShowMeWhy tries to remove what you no longer need to review.**
 
+## A real example: the agent says the UI is fixed
+
+An agent can make a plausible change and still leave the important part unproven:
+
+```text
+Agent:
+
+State light restored.
+
+There is now exactly one semantic status indicator in the hero:
+
+READY                    neutral
+RISK                     red
+CONNECT / SCANNING       amber
+VERIFY                   amber
+DONE                     green
+
+The decorative dot-matrix system stays removed.
+The header and footer stay clean.
+```
+
+That sounds complete, but it contains several separate claims. A passing build does not establish that the semantic light still exists, that each state renders the intended colour, or that decorative dots were removed without deleting the meaningful indicator.
+
+Run:
+
+```text
+/showmewhy
+```
+
+ShowMeWhy should independently close what it can and expose only what remains:
+
+```text
+SHOWMEWHY
+
+The status-light change is mostly verified.
+
+5 verified · 1 need you
+
+NEEDS YOU
+1  DONE renders green in the actual UI · MEDIUM
+   The mapping exists in code, but the DONE state was not
+   exercised in the rendered component.
+
+DO NEXT
+Trigger DONE and inspect the rendered status indicator.
+```
+
+If the implementation accidentally removed the semantic light together with the decorative dots, the surface changes instead:
+
+```text
+SHOWMEWHY
+
+The requested status indicator was not fully restored.
+
+4 verified · 1 refuted
+
+REFUTED
+1  Exactly one semantic status light remains · HIGH
+   The decorative dots were removed, but the semantic state
+   indicator was removed with them.
+
+DO NEXT
+Restore the single state indicator without reintroducing
+the decorative dot matrix.
+```
+
+The point is not to produce another review report. It is to distinguish **what the agent said it changed** from **what the available evidence actually establishes**.
+
 ## Before / after
 
 <table>
