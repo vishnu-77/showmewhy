@@ -23,10 +23,12 @@ jobs:
             repository: pytest-dev/pytest
             base: 51e9a9f148cd2509a31e3fa0d2b1b3204c2b0dd7
             setup: python -m pip install -e . hypothesis
+            pre_fix_rc: 1
           - task_id: pydantic-validation-schema-alias
             repository: pydantic/pydantic
             base: d4e72faf5749257cd7feeb27bc7ca56c423942b6
-            setup: python -m pip install -e . pytest dirty-equals jsonschema
+            setup: python -m pip install -e . pytest dirty-equals jsonschema pytest-benchmark
+            pre_fix_rc: 1
           - task_id: pytest-warning-module-attribution
             repository: pytest-dev/pytest
             base: f1211ba21d1df2f55cf2ba1523b9d7b6c6a9ef56
@@ -34,7 +36,8 @@ jobs:
           - task_id: fastapi-sse-line-splitting
             repository: fastapi/fastapi
             base: 31ce3cb8d73a6e20221315a90dd98a117f0101a0
-            setup: python -m pip install -e . pytest httpx inline-snapshot
+            setup: python -m pip install -e . pytest httpx httpx2 inline-snapshot pytest-timeout
+            pre_fix_rc: 1
           - task_id: fastapi-stream-status-code
             repository: fastapi/fastapi
             base: b1346bb142c8154950953255eea535e5a83d62eb
@@ -71,7 +74,8 @@ jobs:
             --task-id "${{ matrix.task_id }}" \
             --workspace subject \
             --result "$RUNNER_TEMP/v5-oracle/${{ matrix.task_id }}.json" \
-            --setup-command "${{ matrix.setup }}"
+            --setup-command "${{ matrix.setup }}" \
+            --pre-fix-allowed-return-code "${{ matrix.pre_fix_rc }}"
 
       - name: Upload oracle evidence
         if: always()
@@ -121,7 +125,8 @@ jobs:
             --manifest showmewhy/evals/v5/pilot/manifest.json \
             --task-id ruff-sim117-mixed-sync-async \
             --workspace subject \
-            --result "$RUNNER_TEMP/v5-oracle/ruff-sim117-mixed-sync-async.json"
+            --result "$RUNNER_TEMP/v5-oracle/ruff-sim117-mixed-sync-async.json" \
+            --pre-fix-allowed-return-code 101
 
       - name: Upload oracle evidence
         if: always()
