@@ -95,6 +95,7 @@ class V5OracleRunnerTests(unittest.TestCase):
                 task_id="fixture-task",
                 workspace=subject,
                 result_path=result_path,
+                pre_fix_allowed_return_codes={1},
             )
 
             self.assertTrue(result["oracle_validated"])
@@ -105,6 +106,30 @@ class V5OracleRunnerTests(unittest.TestCase):
             self.assertEqual(len(result["test_patch_sha256"]), 64)
             persisted = json.loads(result_path.read_text(encoding="utf-8"))
             self.assertTrue(persisted["oracle_validated"])
+
+
+    def test_runner_rejects_non_oracle_failure_exit_code(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _, subject, base, accepted = self._fixture(root)
+            manifest = root / "manifest.json"
+            result_path = root / "evidence" / "result.json"
+            self._manifest(manifest, base=base, accepted=accepted)
+
+            with self.assertRaisesRegex(
+                OracleValidationError, "non-oracle exit code"
+            ):
+                validate_oracle(
+                    manifest_path=manifest,
+                    task_id="fixture-task",
+                    workspace=subject,
+                    result_path=result_path,
+                    pre_fix_allowed_return_codes={2},
+                )
+
+            persisted = json.loads(result_path.read_text(encoding="utf-8"))
+            self.assertEqual(persisted["pre_fix"]["status"], "invalid_failure")
+            self.assertFalse(persisted["oracle_validated"])
 
     def test_result_evidence_must_live_outside_subject_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as td:
