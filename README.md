@@ -17,116 +17,34 @@ Turn agent output into the smallest remaining verification surface.
   <img src="brand/showmewhy-arrange.svg" alt="ShowMeWhy arranges noisy agent output into a verification surface" width="860">
 </p>
 
-## Install
+## What ShowMeWhy does
 
-### Claude Code marketplace
+Agents are good at producing work and describing what they changed. The expensive part is deciding whether those claims are actually established.
 
-Inside Claude Code:
+ShowMeWhy takes an agent result, identifies the material claims, checks them against observable evidence, closes what can be independently settled, and surfaces only the remaining verification gap.
 
-```text
-/plugin marketplace add vishnu-77/showmewhy
-/plugin install showmewhy@showmewhy
-/reload-plugins
-```
+It asks one question:
 
-Then use the bare ShowMeWhy command:
+> **What still needs human verification before this result should be trusted?**
 
-```text
-/showmewhy
-```
-
-or give it a fresh question:
-
-```text
-/showmewhy is this migration actually safe to ship?
-```
-
-Claude Code also recognises the plugin-qualified skill name internally, but ShowMeWhy's public command surface is `/showmewhy`.
-
-From a shell, the equivalent marketplace setup is:
-
-```bash
-claude plugin marketplace add vishnu-77/showmewhy
-claude plugin install showmewhy@showmewhy
-```
-
-### One-line installer
-
-macOS, Linux and WSL:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh | bash
-```
-
-Windows PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
-```
-
-The installer sets up one marketplace-managed plugin containing the Skill, hooks and runtime, enables ShowMeWhy marketplace auto-update, and removes the older copied personal Skill if one exists.
-
-### Status and updates
-
-```text
-/showmewhy status
-/showmewhy update
-```
-
-`status` inspects the installed plugin, marketplace and update state. `update` uses Claude Code's native plugin updater for ShowMeWhy only. If a new version is installed during a running session, run `/reload-plugins` or start a new Claude Code session before expecting the new contract to be active.
-
-Claude Code can also update ShowMeWhy automatically in the background after startup when marketplace auto-update is enabled.
-
-## What it does
-
-AI makes work cheap to produce and expensive to trust. ShowMeWhy tries to remove that verification debt before it reaches you.
-
-It does **not** review everything and hand you a longer report. Internally it breaks a result into material claims, defines what would establish or refute them, gathers observable witnesses, closes what it can, and surfaces only what remains unresolved.
-
-```text
-Agent: Done. Authentication migration complete. All tests pass.
-
-/showmewhy
-
-SHOWMEWHY
-
-Authentication migration works for the tested paths,
-but legacy-token compatibility is still unverified.
-
-2 verified · 1 need you
-
-NEEDS YOU
-1  Pre-migration mobile tokens remain compatible · HIGH
-   No pre-migration mobile token was exercised.
-
-DO NEXT
-Run a pre-migration mobile token through the new verifier.
-```
-
-**Most tools show you more. ShowMeWhy tries to remove what you no longer need to review.**
-
-## A real example: the agent says the UI is fixed
-
-An agent can make a plausible change and still leave the important part unproven:
+### Example: the agent says the UI is fixed
 
 ```text
 Agent:
 
 State light restored.
 
-There is now exactly one semantic status indicator in the hero:
-
-READY                    neutral
-RISK                     red
-CONNECT / SCANNING       amber
-VERIFY                   amber
-DONE                     green
+READY                  neutral
+RISK                   red
+CONNECT / SCANNING     amber
+VERIFY                 amber
+DONE                   green
 
 The decorative dot-matrix system stays removed.
 The header and footer stay clean.
 ```
 
-That sounds complete, but it contains several separate claims. A passing build does not establish that the semantic light still exists, that each state renders the intended colour, or that decorative dots were removed without deleting the meaningful indicator.
+That response sounds complete, but it contains several independent claims. A successful build does not prove that the semantic light still exists, that every state renders correctly, or that decorative dots were removed without deleting the meaningful indicator.
 
 Run:
 
@@ -134,7 +52,7 @@ Run:
 /showmewhy
 ```
 
-ShowMeWhy should independently close what it can and expose only what remains:
+If most claims can be established but one rendered state was never exercised:
 
 ```text
 SHOWMEWHY
@@ -152,7 +70,7 @@ DO NEXT
 Trigger DONE and inspect the rendered status indicator.
 ```
 
-If the implementation accidentally removed the semantic light together with the decorative dots, the surface changes instead:
+If the implementation actually removed the semantic indicator with the decorative dots:
 
 ```text
 SHOWMEWHY
@@ -171,48 +89,107 @@ Restore the single state indicator without reintroducing
 the decorative dot matrix.
 ```
 
-The point is not to produce another review report. It is to distinguish **what the agent said it changed** from **what the available evidence actually establishes**.
+The goal is not another review report. It is to distinguish **what the agent said** from **what the evidence establishes**, then remove everything the human no longer needs to inspect.
 
-## Before / after
+## Install
 
-<table>
-<tr>
-<td width="50%" valign="top">
+### Claude Code marketplace
 
-### Before
+Inside Claude Code:
 
-> The agent changed 47 files and says the migration is complete. Tests are green, the new token path works, and the middleware has been updated. You still need to inspect the diff, work out which claims matter, decide whether the tests actually prove them, look for compatibility issues, and figure out what to check next.
+```text
+/plugin marketplace add vishnu-77/showmewhy
+/plugin install showmewhy@showmewhy
+/reload-plugins
+```
 
-</td>
-<td width="50%" valign="top">
+Then run:
 
-### After
+```text
+/showmewhy
+```
+
+or verify a fresh question directly:
+
+```text
+/showmewhy is this migration actually safe to ship?
+```
+
+The public command surface is `/showmewhy`. The Skill, hooks and runtime ship together as one marketplace-managed plugin.
+
+### One-line installer
+
+macOS, Linux and WSL:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
+```
+
+The installer configures the same marketplace-managed plugin, enables marketplace auto-update and removes the legacy copied personal Skill when present.
+
+### Status and updates
+
+```text
+/showmewhy status
+/showmewhy update
+```
+
+If an update is installed during an active Claude Code session, run `/reload-plugins` or start a new session before expecting the new contract to be active.
+
+## Verification contract
+
+ShowMeWhy uses a small internal grammar:
+
+| Stage | Meaning |
+|---|---|
+| `CLAIM` | A material statement that affects trust or action |
+| `OBLIGATION` | What would establish or refute that claim |
+| `WITNESS` | Observable execution, source, measurement, invariant, boundary check, regression or counterexample |
+| `SCRUTINY` | Whether the witness actually addresses the claim and is current |
+| `CLOSURE` | `VERIFIED`, `REFUTED` or `OPEN` |
+| `SURFACE` | Only material unresolved or refuted claims shown by default |
+
+Agent assertions, confidence language and “done” messages are not independent evidence. A passing command proves that command passed; it does not automatically establish a broader semantic claim.
+
+Broad claims such as “safe”, “all”, “backwards compatible”, “no regression” and “production-ready” require stronger witnesses and, where appropriate, counterexamples or boundary checks.
+
+The complete behavioural contract lives in [`skills/showmewhy/SKILL.md`](skills/showmewhy/SKILL.md).
+
+## Default output
+
+The normal human surface has three jobs:
+
+```text
+RESULT      narrowest defensible conclusion
+NEEDS YOU   only material claims still open or refuted
+DO NEXT     one action that closes the highest-value gap
+```
+
+If every material claim can be independently settled:
 
 ```text
 SHOWMEWHY
 
-Migration works for tested paths.
+The measured claim is supported.
 
-18 verified · 2 need you
-
-NEEDS YOU
-1  Rollback behaviour · HIGH
-   Rollback was never executed.
-
-2  Legacy-client compatibility
-   No old-client fixture was exercised.
+VERIFIED
+6 material claims independently settled.
 
 DO NEXT
-Run migrate → write → rollback → read.
+No material verification gap found.
 ```
 
-</td>
-</tr>
-</table>
+ShowMeWhy does not expose or reconstruct private chain-of-thought. It works from observable evidence and explicit claim state.
 
-## When the answer changes
+## When evidence changes the answer
 
-Agents often discover the decisive fact **after** a plan or conclusion has already been formed. ShowMeWhy detects that state change automatically rather than explaining the whole session again.
+A previously supported conclusion can become unsafe when later evidence invalidates an assumption. ShowMeWhy handles that as a **Context Delta** rather than replaying the whole investigation.
 
 ```text
 Earlier
@@ -242,216 +219,130 @@ DO NEXT
 Merge PI-906, then run the planned maintenance-window smoke tests.
 ```
 
-The core verifier is unchanged. Context Delta simply compares the earlier and current verification states and exposes **what changed, what assumption broke, and what now matters**.
-
-## The output
-
-Default ShowMeWhy output has three jobs:
-
-```text
-RESULT      the narrowest defensible conclusion
-NEEDS YOU   only material claims still open or refuted
-DO NEXT     one action that closes the highest-value gap
-```
-
-When new evidence materially changes an earlier result, the same command switches to:
-
-```text
-CHANGED             the current defensible conclusion
-BROKEN ASSUMPTION   the relied-upon premise invalidated by evidence
-DO NEXT             one action that resolves the changed obligation
-```
-
-No proof DAG. No mandatory MONITOR block. No carbon footer. No catalogue of every passing check. No retrospective story about how the agent eventually noticed the issue.
-
-If everything material can be independently settled:
-
-```text
-SHOWMEWHY
-
-The measured claim is supported.
-
-VERIFIED
-6 material claims independently settled.
-
-DO NEXT
-No material verification gap found.
-```
-
-Use `why` mode when you actually want the expanded claim/witness ledger.
-
-## The rules
-
-1. **Agent assertions are not evidence.** “Done”, “tests pass”, and confidence language never close a claim by themselves.
-2. **Verify claims, not line counts.** A 10-line security change can matter more than 10,000 generated lines.
-3. **Every material claim gets an obligation.** What would establish it? What would refute it?
-4. **Prefer witnesses over prose.** Executions, sources, measurements, invariants, boundaries, regressions and counterexamples beat another explanation.
-5. **Broad claims get attacked.** “All”, “safe”, “backwards compatible”, “no regression”, and “production-ready” should trigger counterexample or boundary checks.
-6. **Only three claim states exist.** `VERIFIED`, `REFUTED`, `OPEN`.
-7. **New evidence can reopen old conclusions.** A prior `VERIFIED` result is not permanent if a current witness invalidates a relied-upon assumption.
-8. **Default output shows the remaining work.** At most three unresolved items, then one concrete `DO NEXT`.
-
-The full contract lives in [`skills/showmewhy/SKILL.md`](skills/showmewhy/SKILL.md).
-
-## Works beyond code
-
-The verification primitive is domain-general. The witnesses change; the contract does not.
-
-| Domain | Material claim | Example witness | Typical unresolved or changed state |
-|---|---|---|---|
-| Code | “migration is backwards compatible” | old-client regression fixture | legacy client never exercised |
-| Policy | “all production identities require MFA” | clause + exception search | legacy bypass refutes the universal claim |
-| Research | “method reduces energy use” | direct measurement | only token proxy measured |
-| Contract | “all notice periods are 14 days” | clause search across schedules | Schedule B still says 30 days |
-| Data | “migration preserves semantics” | invariant + downstream fixture | null behaviour untested |
-| Architecture | “single point of failure removed” | dependency/failure probe | shared Redis still exists |
-
-Deterministic reference cases live in [`evals/reference_cases/`](evals/reference_cases/) and temporal Context Delta cases live in [`evals/context_delta_cases.json`](evals/context_delta_cases.json).
-
-## Why this is different
-
-Most review systems **add findings**. ShowMeWhy's target is the opposite: **shrink the human verification surface**.
-
-A semantic diff can reorganise a large change. A receipt can prove that an action happened. ShowMeWhy asks a different question:
-
-> **What material part of this result is still not independently established — and did new evidence invalidate what we believed before?**
-
-That means a 500-line or 15,000-line change should not become a 100-line summary. If 497 of 500 material claims can be independently settled, the default surface should contain only the remaining three. If later evidence breaks one of the 497, that claim returns to the surface.
-
-## How it works
-
-Internally, ShowMeWhy uses a small verification grammar:
-
-```text
-CLAIM       material statement that affects trust or action
-OBLIGATION  what would establish or refute it
-WITNESS     observable execution, source, measurement or counterexample
-SCRUTINY    does the witness really address the claim?
-CLOSURE     VERIFIED · REFUTED · OPEN
-SURFACE     only unresolved material claims reach the default output
-```
-
-For temporal changes, it adds four internal objects without changing the core verifier:
-
-```text
-CONTEXT SET  what was actually inspected
-ASSUMPTION   what had to remain true
-INVALIDATOR  new evidence that breaks the assumption
-DELTA        the material state change
-```
-
-The human does not need to see that machinery unless they ask for `why` or `json` mode.
+Context Delta reuses the same verifier. Internally it tracks the inspected context, relied-upon assumption, invalidating evidence and resulting state change.
 
 ## Views
 
-```text
-/showmewhy             unresolved surface or automatic Context Delta
-/showmewhy short       one gap + one next action
-/showmewhy why         claim · state · witness/gap ledger
-/showmewhy compare     compact comparison
-/showmewhy monitor     session-level verification state
-/showmewhy impact      context/token/operational impact
-/showmewhy json        machine-readable verification or delta surface
-/showmewhy deep        broader verification, same compact final surface
-/showmewhy status      installed version, plugin and update health
-/showmewhy update      update ShowMeWhy through Claude Code's plugin updater
-```
+| Command | Purpose |
+|---|---|
+| `/showmewhy` | Default unresolved surface or automatic Context Delta |
+| `/showmewhy short` | One gap and one next action |
+| `/showmewhy why` | Expanded claim/witness/gap ledger |
+| `/showmewhy compare` | Evidence-aware comparison |
+| `/showmewhy monitor` | Session-level verification state |
+| `/showmewhy impact` | Context, token and operational-impact accounting |
+| `/showmewhy json` | Machine-readable verification or delta output |
+| `/showmewhy deep` | Broader verification with the same compact final surface |
+| `/showmewhy status` | Installed version, plugin and update health |
+| `/showmewhy update` | Update through Claude Code's native plugin updater |
 
-Composition also remains inside the same command:
+### Composition
+
+Several ShowMeWhy behaviours can be composed while exposing only one Claude Code command:
 
 ```text
 /showmewhy /monitor /showmewhy /i-have-adhd -- investigate why auth tests fail
 ```
 
-Only the first `/showmewhy` is a Claude Code command. The remaining slash-prefixed values are parsed as ShowMeWhy-owned stages.
+Only the first `/showmewhy` is a Claude Code command. The remaining slash-prefixed tokens are parsed by ShowMeWhy as internal stages. Unknown stages fail closed, and task text is separated with `--` so ordinary paths, flags or URLs are not mistaken for commands.
 
-## Battle-tested reference behaviour
+## Works beyond code
 
-The deterministic reference engines are intentionally small enough to inspect:
+The verification primitive is domain-general; the witnesses change, but the contract does not.
 
-```bash
-python skills/showmewhy/scripts/verification_surface.py \
-  evals/reference_cases/code-auth.json
-```
+| Domain | Material claim | Example witness | Typical unresolved state |
+|---|---|---|---|
+| Code | “migration is backwards compatible” | old-client regression fixture | legacy client never exercised |
+| Policy | “all production identities require MFA” | clause + exception search | legacy bypass refutes the universal claim |
+| Research | “method reduces energy use” | direct measurement | only a token proxy was measured |
+| Contract | “all notice periods are 14 days” | clause search across schedules | Schedule B still says 30 days |
+| Data | “migration preserves semantics” | invariant + downstream fixture | null behaviour untested |
+| Architecture | “single point of failure removed” | dependency/failure probe | shared Redis still exists |
 
-Current fixtures cover code, policy, research, contracts, data and architecture. Context Delta fixtures additionally cover a cross-repository infrastructure blocker, a research proxy claim, a policy exception, and a contract schedule conflict.
+## Runtime and evidence
 
-The scale regression creates **500 material claims**, verifies 497, leaves 3 open, and asserts that the default human output does not replay the 497 settled claims.
+Eligible verbose Bash `PostToolUse` results can be retained as raw local evidence and represented by smaller deterministic execution digests.
 
-Run the complete suite:
+Raw evidence remains the source of truth. Since v4.4.2, destructive replacement is allowed only when the compressor declares its representation complete and the effective runtime mode permits replacement. Incomplete digests may assist inspection, but they cannot silently become the agent's only visible evidence.
+
+Runtime state is stored outside the consumer repository in ShowMeWhy's OS-level state directory, partitioned by project. `SHOWMEWHY_HOME` can override the state root.
+
+Retained evidence and runs receive stable local addresses such as `evidence://...` and `run://...`. Typed provenance remains available for deeper inspection without becoming the default human UI.
+
+More detail is in [`runtime/README.md`](runtime/README.md).
+
+## Evaluation
+
+ShowMeWhy separates **product behaviour** from **claims about effectiveness**.
+
+The deterministic reference suite checks the verification contract across code, policy, research, contracts, data and architecture. Temporal cases test Context Delta behaviour.
 
 ```bash
 python -m unittest discover -s evals -p 'test_*.py'
 ```
 
-## Under the hood
+The V5 evaluation track asks a stricter empirical question:
+
+> **Can ShowMeWhy reduce the amount of evidence a human must inspect while preserving detection of consequential agent errors?**
+
+The current V5 harness includes a machine-readable schema, scorer, a frozen real-world pilot corpus and executable upstream oracle validation.
+
+Primary measurements are material-failure recall and verification-surface reduction. False closure is treated as a safety diagnostic rather than hidden inside an aggregate score.
+
+See [`evals/v5/`](evals/v5/) for the protocol and implementation.
+
+No effectiveness number is claimed in this README until the paired evaluation has produced one.
+
+## Release proof
+
+ShowMeWhy's release path uses executable acceptance gates:
+
+| Claim | CI gate |
+|---|---|
+| Core contracts still work | Python 3.11, 3.12 and 3.13 |
+| Claude accepts the plugin | real `claude plugin validate` |
+| Marketplace installation loads | add → install → fresh-process plugin inspection |
+| Skill and runtime ship together | installed cache contains both |
+| Auto-update is configured | marketplace state inspection |
+| Installation is repeatable | installer runs twice on clean runners |
+| Desktop install paths work | Ubuntu, macOS and Windows acceptance |
+
+Release history lives in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases).
+
+## Advanced references
 
 <details>
-<summary><strong>Witness closure</strong></summary>
+<summary><strong>Deterministic verifier</strong></summary>
 
-The deterministic verification implementation lives at [`skills/showmewhy/scripts/verification_surface.py`](skills/showmewhy/scripts/verification_surface.py). A material claim is `VERIFIED` only when its required witness kinds are present and no current witness refutes it. A refuting witness wins over supporting evidence. Missing, inconclusive, conflicting, stale or human-only evidence leaves the claim `OPEN`.
+The reference implementation is [`skills/showmewhy/scripts/verification_surface.py`](skills/showmewhy/scripts/verification_surface.py).
 
 The machine contract is [`skills/showmewhy/references/verification-surface.schema.json`](skills/showmewhy/references/verification-surface.schema.json).
+
+A material claim becomes `VERIFIED` only when its required witness kinds are present and no current witness refutes it. Missing, conflicting, stale, inconclusive or human-only evidence leaves the claim `OPEN`.
 
 </details>
 
 <details>
 <summary><strong>Context Delta</strong></summary>
 
-[`skills/showmewhy/scripts/context_delta.py`](skills/showmewhy/scripts/context_delta.py) compares previous and current verification states, detects material claim transitions, records invalidated assumptions, identifies newly inspected context, and renders only the decision-relevant change.
+[`skills/showmewhy/scripts/context_delta.py`](skills/showmewhy/scripts/context_delta.py) compares previous and current verification states and emits only decision-relevant changes.
 
 Its machine contract is [`skills/showmewhy/references/context-delta.schema.json`](skills/showmewhy/references/context-delta.schema.json).
 
 </details>
 
 <details>
-<summary><strong>Context compression and retained evidence</strong></summary>
-
-Eligible verbose Bash `PostToolUse` results are stored as raw local evidence before deterministic parsing. Recognised result shapes can be replaced in model context with a smaller execution digest. Short, unsupported or low-confidence results are left untouched.
-
-Runtime state is stored **outside the consumer repository** in ShowMeWhy's OS-level state directory, partitioned by a stable project namespace. On macOS this uses Application Support, on Linux XDG/local state, and on Windows Local AppData. `SHOWMEWHY_HOME` can override the root. Reported material loss forces the adaptive policy into shadow mode until explicitly reviewed and cleared.
-
-</details>
-
-<details>
-<summary><strong>Provenance</strong></summary>
-
-Retained evidence and runs still receive stable local addresses such as `evidence://...` and `run://...`. Typed provenance remains available for machines and deep inspection, but it is no longer the default human UI.
-
-Private chain-of-thought is never exposed or reconstructed.
-
-</details>
-
-<details>
 <summary><strong>Impact accounting</strong></summary>
 
-ShowMeWhy separates presentation reduction from context actually avoided. Shortening already-generated text does not undo inference cost. Operational CO₂e estimates are available only through explicit `impact` use when the baseline is defensible.
+ShowMeWhy distinguishes presentation reduction from context actually avoided. Shortening already-generated text does not undo inference cost. Operational CO₂e estimates are available only through explicit `impact` use when the baseline is defensible.
 
 See [`skills/showmewhy/references/impact-methodology.md`](skills/showmewhy/references/impact-methodology.md).
 
 </details>
 
-## The mark
+## Brand
 
-The Socratic thinker represents scrutiny before acceptance. Its flowing hair contains a quiet `S`; the smaller inner profile represents dialogue, challenge and the question behind ShowMeWhy: **how do you know?**
-
-Brand construction and usage live in [`brand/`](brand/README.md).
-
-## Proof
-
-ShowMeWhy's own release path uses real acceptance gates:
-
-| Claim | CI gate |
-|---|---|
-| Core contracts still work | Python 3.11, 3.12 and 3.13 |
-| Claude accepts the plugin | real `claude plugin validate` |
-| Marketplace install actually loads | add → install → fresh-process `plugin list` |
-| Skill and runtime ship together | installed cache contains both |
-| Auto-update is configured | marketplace state has `autoUpdate: true` |
-| Installation is repeatable | installer runs twice on clean runners |
-| Desktop install paths work | Ubuntu, macOS and Windows acceptance |
-
-Release history belongs in [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/vishnu-77/showmewhy/releases), not in this README.
+The Socratic thinker represents scrutiny before acceptance. Brand construction and usage live in [`brand/`](brand/README.md).
 
 ## License
 
