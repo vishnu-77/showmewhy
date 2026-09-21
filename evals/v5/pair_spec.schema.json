@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schemas/v5-pair-spec.json",
+  "title": "ShowMeWhy V5 paired execution specification",
+  "type": "object",
+  "required": [
+    "version",
+    "task_id",
+    "domain",
+    "repository",
+    "revision",
+    "task_prompt",
+    "model",
+    "agent_runtime",
+    "tool_profile",
+    "repeat_index",
+    "command"
+  ],
+  "properties": {
+    "version": {"const": "v5-pair-spec-1"},
+    "task_id": {"type": "string", "minLength": 1},
+    "domain": {"type": "string", "minLength": 1},
+    "repository": {"type": "string", "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "task_prompt": {"type": "string", "minLength": 1},
+    "task_prompt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "model": {"type": "string", "minLength": 1},
+    "agent_runtime": {"type": "string", "minLength": 1},
+    "tool_profile": {"type": "string", "minLength": 1},
+    "repeat_index": {"type": "integer", "minimum": 0},
+    "pair_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "command": {
+      "type": "object",
+      "required": ["argv"],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "pass_env": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
