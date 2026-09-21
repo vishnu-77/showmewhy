@@ -1,15 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" role="img" aria-labelledby="title desc">
-  <title id="title">ShowMeWhy live verification demo</title>
-  <desc id="desc">An agent claim is shown, the user types /showmewhy, ShowMeWhy checks evidence, then surfaces one unresolved claim.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-labelledby="title desc">
+  <title id="title">ShowMeWhy verification transcript demo</title>
+  <desc id="desc">A short agent transcript invokes ShowMeWhy, briefly checks evidence, then leaves one unresolved claim and one next action.</desc>
 
   <style>
     :root { color-scheme: light dark; }
 
     .bg { fill:#F7F7F4; }
-    .panel { fill:#F7F7F4; stroke:#D8D8D2; stroke-width:1.5; }
+    .frame { fill:none; stroke:#D8D8D2; stroke-width:1.25; }
+    .rule { stroke:#D8D8D2; stroke-width:1; }
     .ink { fill:#0A0A0A; }
     .muted { fill:#666; }
-    .rule { stroke:#D8D8D2; stroke-width:1.5; }
     .accent { fill:#9A641F; }
 
     .sans {
@@ -18,184 +18,130 @@
     .mono {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
-    .label { font-size:14px; font-weight:700; letter-spacing:.8px; }
-    .body { font-size:20px; }
-    .small { font-size:16px; }
-    .cmd { font-size:21px; }
-    .result-title { font-size:17px; font-weight:700; letter-spacing:.45px; }
+    .label { font-size:13px; font-weight:700; letter-spacing:.85px; }
+    .body { font-size:18px; }
+    .small { font-size:15px; }
+    .cmd { font-size:18px; }
+    .strong { font-size:16px; font-weight:700; letter-spacing:.25px; }
 
+    .command {
+      opacity:0;
+      animation:command 12s ease-in-out infinite;
+    }
+    .checking {
+      opacity:0;
+      animation:checking 12s ease-in-out infinite;
+    }
+    .result {
+      opacity:0;
+      animation:result 12s ease-in-out infinite;
+    }
+    .result-detail {
+      opacity:0;
+      animation:resultDetail 12s ease-in-out infinite;
+    }
+    .result-next {
+      opacity:0;
+      animation:resultNext 12s ease-in-out infinite;
+    }
     .scene {
-      animation: scene 10s ease-in-out infinite;
-      transform-origin: center;
+      animation:scene 12s ease-in-out infinite;
     }
-
-    .cmd-text {
-      clip-path: inset(0 100% 0 0);
-      animation: typeCommand 10s steps(12,end) infinite;
+    .pulse {
+      opacity:.35;
+      animation:pulse 1.05s ease-in-out infinite;
     }
+    .p2 { animation-delay:.16s; }
+    .p3 { animation-delay:.32s; }
 
-    .cmd-cursor {
-      opacity:0;
-      transform:translateX(0);
-      animation:
-        moveCursor 10s steps(12,end) infinite,
-        cursorVisibility 10s linear infinite,
-        blink .72s step-end infinite;
+    @keyframes command {
+      0%,10% { opacity:0; }
+      16%,92% { opacity:1; }
+      97%,100% { opacity:0; }
     }
-
-    .scan {
-      opacity:0;
-      animation: scanVisibility 10s linear infinite;
+    @keyframes checking {
+      0%,20% { opacity:0; }
+      25%,34% { opacity:1; }
+      39%,100% { opacity:0; }
     }
-
-    .dot1 { animation: dot1 1.05s ease-in-out infinite; }
-    .dot2 { animation: dot2 1.05s ease-in-out infinite; }
-    .dot3 { animation: dot3 1.05s ease-in-out infinite; }
-
-    .result-card {
-      opacity:0;
-      transform:translateY(10px);
-      animation: resultCard 10s cubic-bezier(.2,.7,.2,1) infinite;
+    @keyframes result {
+      0%,35% { opacity:0; }
+      42%,92% { opacity:1; }
+      97%,100% { opacity:0; }
     }
-
-    .result-row-1 {
-      opacity:0;
-      transform:translateY(5px);
-      animation: resultRow1 10s ease-out infinite;
+    @keyframes resultDetail {
+      0%,40% { opacity:0; }
+      47%,92% { opacity:1; }
+      97%,100% { opacity:0; }
     }
-
-    .result-row-2 {
-      opacity:0;
-      transform:translateY(5px);
-      animation: resultRow2 10s ease-out infinite;
+    @keyframes resultNext {
+      0%,45% { opacity:0; }
+      52%,92% { opacity:1; }
+      97%,100% { opacity:0; }
     }
-
     @keyframes scene {
-      0%,90% { opacity:1; }
-      96%,100% { opacity:0; }
+      0%,94% { opacity:1; }
+      100% { opacity:0; }
     }
-
-    @keyframes typeCommand {
-      0%,12% { clip-path:inset(0 100% 0 0); }
-      29%,90% { clip-path:inset(0 0 0 0); }
-      96%,100% { clip-path:inset(0 100% 0 0); }
-    }
-
-    @keyframes moveCursor {
-      0%,12% { transform:translateX(0); }
-      29%,90% { transform:translateX(165px); }
-      96%,100% { transform:translateX(0); }
-    }
-
-    @keyframes cursorVisibility {
-      0%,11%,35%,100% { opacity:0; }
-      12%,34% { opacity:1; }
-    }
-
-    @keyframes blink {
-      0%,48% { visibility:visible; }
-      49%,100% { visibility:hidden; }
-    }
-
-    @keyframes scanVisibility {
-      0%,33% { opacity:0; }
-      36%,46% { opacity:1; }
-      49%,100% { opacity:0; }
-    }
-
-    @keyframes dot1 {
+    @keyframes pulse {
       0%,100% { opacity:.25; }
-      20%,45% { opacity:1; }
-    }
-    @keyframes dot2 {
-      0%,20%,100% { opacity:.25; }
-      40%,65% { opacity:1; }
-    }
-    @keyframes dot3 {
-      0%,40%,100% { opacity:.25; }
-      60%,85% { opacity:1; }
-    }
-
-    @keyframes resultCard {
-      0%,46% { opacity:0; transform:translateY(10px); }
-      52%,90% { opacity:1; transform:translateY(0); }
-      96%,100% { opacity:0; transform:translateY(0); }
-    }
-
-    @keyframes resultRow1 {
-      0%,52% { opacity:0; transform:translateY(5px); }
-      58%,90% { opacity:1; transform:translateY(0); }
-      96%,100% { opacity:0; transform:translateY(0); }
-    }
-
-    @keyframes resultRow2 {
-      0%,59% { opacity:0; transform:translateY(5px); }
-      66%,90% { opacity:1; transform:translateY(0); }
-      96%,100% { opacity:0; transform:translateY(0); }
+      50% { opacity:1; }
     }
 
     @media (prefers-color-scheme: dark) {
-      .bg,.panel { fill:#0D1218; }
-      .panel,.rule { stroke:#30363D; }
+      .bg { fill:#0D1218; }
+      .frame,.rule { stroke:#30363D; }
       .ink { fill:#F7F7F4; }
       .muted { fill:#A4A7AA; }
       .accent { fill:#D7A45D; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .scene,.cmd-text,.cmd-cursor,.scan,.result-card,.result-row-1,.result-row-2,
-      .dot1,.dot2,.dot3 {
+      .scene,.command,.checking,.result,.result-detail,.result-next,.pulse {
         animation:none;
       }
-      .scene { opacity:1; }
-      .cmd-text { clip-path:inset(0 0 0 0); }
-      .cmd-cursor,.scan { display:none; }
-      .result-card,.result-row-1,.result-row-2 {
-        opacity:1;
-        transform:none;
-      }
+      .scene,.command,.result,.result-detail,.result-next { opacity:1; }
+      .checking { display:none; }
     }
   </style>
 
-  <rect class="bg" width="960" height="340"/>
+  <rect class="bg" width="960" height="300"/>
+  <rect class="frame" x="24" y="18" width="912" height="264"/>
 
   <g class="scene">
-    <!-- Agent claim: visible immediately so the demo starts with context, not typing theatre. -->
-    <rect class="panel" x="28" y="24" width="904" height="104"/>
-    <text class="muted sans label" x="48" y="51">AGENT</text>
-    <text class="ink sans body" x="48" y="82">Done. All status states render correctly.</text>
-    <text class="muted sans small" x="48" y="108">Decorative dots removed · header and footer unchanged</text>
+    <text class="muted sans label" x="46" y="48">AGENT</text>
+    <text class="ink sans body" x="112" y="48">Done. All status states render correctly.</text>
+    <text class="muted sans small" x="112" y="73">Decorative dots removed · header and footer unchanged</text>
 
-    <!-- User action: this is the only typed element. -->
-    <text class="muted sans label" x="48" y="162">YOU</text>
-    <g class="cmd-text">
-      <text class="ink mono cmd" x="48" y="194">&gt; /showmewhy</text>
-    </g>
-    <rect class="ink cmd-cursor" x="52" y="174" width="2" height="25"/>
+    <line class="rule" x1="46" y1="92" x2="914" y2="92"/>
 
-    <!-- Short processing beat. -->
-    <g class="scan">
-      <text class="muted mono small" x="48" y="226">checking evidence</text>
-      <circle class="muted dot1" cx="202" cy="221" r="2.2"/>
-      <circle class="muted dot2" cx="212" cy="221" r="2.2"/>
-      <circle class="muted dot3" cx="222" cy="221" r="2.2"/>
+    <g class="command">
+      <text class="muted sans label" x="46" y="121">YOU</text>
+      <text class="ink mono cmd" x="112" y="121">/showmewhy</text>
     </g>
 
-    <!-- Stable result state. -->
-    <g class="result-card">
-      <rect class="panel" x="28" y="218" width="904" height="98"/>
-      <text class="ink sans result-title" x="48" y="246">5 VERIFIED</text>
-      <text class="accent sans result-title" x="156" y="246">1 NEEDS YOU</text>
+    <g class="checking">
+      <text class="muted mono small" x="112" y="160">checking evidence</text>
+      <circle class="muted pulse" cx="259" cy="155" r="2.1"/>
+      <circle class="muted pulse p2" cx="269" cy="155" r="2.1"/>
+      <circle class="muted pulse p3" cx="279" cy="155" r="2.1"/>
+    </g>
 
-      <g class="result-row-1">
-        <text class="ink sans body" x="48" y="278">DONE renders green in the actual UI</text>
-        <text class="muted sans small" x="460" y="278">No rendered witness</text>
-      </g>
+    <g class="result">
+      <text class="muted sans label" x="46" y="160">SHOWMEWHY</text>
+      <text class="ink sans strong" x="154" y="160">5 verified</text>
+      <text class="accent sans strong" x="244" y="160">· 1 needs you</text>
+    </g>
 
-      <g class="result-row-2">
-        <text class="muted sans small" x="48" y="301">DO NEXT</text>
-        <text class="ink sans small" x="128" y="301">Trigger DONE and inspect the indicator.</text>
-      </g>
+    <g class="result-detail">
+      <text class="muted sans label" x="46" y="202">NEEDS YOU</text>
+      <text class="ink sans body" x="154" y="202">DONE renders green in the actual UI.</text>
+      <text class="muted sans small" x="154" y="226">No rendered witness exists.</text>
+    </g>
+
+    <g class="result-next">
+      <text class="muted sans label" x="46" y="260">DO NEXT</text>
+      <text class="ink sans small" x="154" y="260">Trigger DONE and inspect the indicator.</text>
     </g>
   </g>
 </svg>
