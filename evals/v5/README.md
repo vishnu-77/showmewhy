@@ -89,3 +89,70 @@ The smoke fixture proves arithmetic and schema behaviour only. It is **not** evi
 ## Publication rule
 
 Do not publish a claim such as “ShowMeWhy reduces verification by X%” until the real corpus has been frozen, independently labelled, executed, and scored. Report baseline and ShowMeWhy material-failure recall, false closures, failure precision, and verification-surface recall beside any verification-reduction number.
+
+
+## Paired execution
+
+`pair_runner.py` executes the baseline and ShowMeWhy conditions without access to benchmark ground truth.
+
+The execution specification is intentionally separate from the scored V5 record. It may contain the task prompt, pinned repository revision, model/runtime/tool profile and adapter command, but the runner rejects oracle/ground-truth fields such as `failing_claim_ids`, `oracle_refs` and `accepted_fix_revision`.
+
+Each pair:
+
+1. hashes the exact task-prompt bytes;
+2. creates two detached Git worktrees at the same pinned revision;
+3. executes the **same argv** in each worktree;
+4. exposes the treatment only through `SHOWMEWHY_V5_CONDITION=baseline|showmewhy`;
+5. counterbalances execution order by repeat index (even: baseline first, odd: ShowMeWhy first);
+6. persists stdout, stderr, Git status, a binary diff and adapter-produced artifacts;
+7. rejects timed-out/non-zero condition runs as an invalid pair;
+8. removes worktrees after capture unless `--keep-worktrees` is explicitly requested.
+
+Pair evidence is append-only: an existing `pair_id` is never overwritten.
+
+Example execution specification:
+
+```json
+{
+  "version": "v5-pair-spec-1",
+  "task_id": "pytest-monkeypatch-inherited-state",
+  "domain": "code",
+  "repository": "pytest-dev/pytest",
+  "revision": "<pinned-pre-fix-sha>",
+  "task_prompt": "<exact frozen task prompt>",
+  "task_prompt_sha256": "<sha256>",
+  "model": "<exact model id>",
+  "agent_runtime": "claude-code",
+  "tool_profile": "v5-code-default",
+  "repeat_index": 0,
+  "command": {
+    "argv": ["python", "/absolute/path/to/v5-agent-adapter.py"],
+    "timeout_seconds": 3600,
+    "pass_env": ["ANTHROPIC_API_KEY"]
+  }
+}
+```
+
+Run it against a local checkout that already contains the pinned revision:
+
+```bash
+python evals/v5/pair_runner.py pair-spec.json \
+  --source-checkout /path/to/upstream/repository \
+  --output-dir /path/to/v5-runs
+```
+
+The adapter receives the same prompt/model/tool metadata in both conditions through environment variables:
+
+- `SHOWMEWHY_V5_CONDITION`
+- `SHOWMEWHY_V5_PAIR_ID`
+- `SHOWMEWHY_V5_PROMPT_SHA256`
+- `SHOWMEWHY_V5_PROMPT_FILE`
+- `SHOWMEWHY_V5_OUTPUT_DIR`
+- `SHOWMEWHY_V5_WORKSPACE`
+- `SHOWMEWHY_V5_MODEL`
+- `SHOWMEWHY_V5_AGENT_RUNTIME`
+- `SHOWMEWHY_V5_TOOL_PROFILE`
+
+The adapter is responsible for applying the intended treatment: the baseline path must produce the ordinary agent result without invoking ShowMeWhy; the `showmewhy` path must run the same task and then apply ShowMeWhy to that result. The adapter must not read benchmark oracle/ground-truth data.
+
+A `v5-pair-run-1` bundle is **raw execution evidence, not a benchmark score**. It becomes scoreable only after independent blinded labelling maps the captured evidence into the existing `schema.json` record contract.

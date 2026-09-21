@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schemas/v5-pair-run.json",
+  "title": "ShowMeWhy V5 raw paired execution bundle",
+  "type": "object",
+  "required": [
+    "version",
+    "pair_status",
+    "task_id",
+    "domain",
+    "pairing",
+    "task_prompt",
+    "execution_order",
+    "command",
+    "conditions",
+    "ground_truth_present"
+  ],
+  "properties": {
+    "version": {"const": "v5-pair-run-1"},
+    "pair_status": {"enum": ["running", "valid", "invalid"]},
+    "task_id": {"type": "string", "minLength": 1},
+    "domain": {"type": "string", "minLength": 1},
+    "pairing": {
+      "type": "object",
+      "required": [
+        "pair_id",
+        "repository",
+        "revision",
+        "task_prompt_sha256",
+        "model",
+        "agent_runtime",
+        "tool_profile",
+        "repeat_index"
+      ]
+    },
+    "task_prompt": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes"]
+    },
+    "execution_order": {
+      "type": "array",
+      "prefixItems": [
+        {"enum": ["baseline", "showmewhy"]},
+        {"enum": ["baseline", "showmewhy"]}
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "command": {"type": "object"},
+    "conditions": {
+      "type": "object",
+      "properties": {
+        "baseline": {"$ref": "#/$defs/condition"},
+        "showmewhy": {"$ref": "#/$defs/condition"}
+      },
+      "additionalProperties": false
+    },
+    "ground_truth_present": {"const": false},
+    "worktree_root": {"type": "string"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes", "lines"]
+    },
+    "condition": {
+      "type": "object",
+      "required": [
+        "condition",
+        "status",
+        "seconds",
+        "return_code",
+        "timed_out",
+        "stdout",
+        "stderr",
+        "git",
+        "adapter_artifacts",
+        "environment"
+      ]
+    }
+  }
+}
