@@ -50,28 +50,7 @@ irm https://raw.githubusercontent.com/vishnu-77/showmewhy/main/install.ps1 | iex
 
 </details>
 
-## See it in 10 seconds
-
-~~~text
-Agent:
-"Done. The status light is restored.
-All states render correctly."
-
-/showmewhy
-
-SHOWMEWHY
-
-5 verified · 1 need you
-
-NEEDS YOU
-DONE renders green in the actual UI.
-The mapping exists, but DONE was never rendered.
-
-DO NEXT
-Trigger DONE and inspect the indicator.
-~~~
-
-That is the product: **agent claim → evidence → only the unresolved gap**.
+**Agent claim → /showmewhy → only the unresolved gap.**
 
 <details>
 <summary><strong>▶ What's inside? Click to inspect</strong></summary>
