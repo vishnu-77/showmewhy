@@ -46,12 +46,15 @@ class V5PairRunnerTests(unittest.TestCase):
         *,
         fail_baseline: bool = False,
         mutate_verifier: bool = False,
+        stage_verifier: bool = False,
     ) -> Path:
         adapter = root / (
             "adapter_fail.py"
             if fail_baseline
             else "adapter_mutate.py"
             if mutate_verifier
+            else "adapter_stage.py"
+            if stage_verifier
             else "adapter.py"
         )
         adapter.write_text(
@@ -78,6 +81,8 @@ class V5PairRunnerTests(unittest.TestCase):
                 + (
                     "    (workspace / 'agent-change.txt').write_text('verifier modified code\\n')\n"
                     if mutate_verifier
+                    else "    import subprocess; subprocess.run(['git', 'add', 'agent-change.txt'], cwd=workspace, check=True)\n"
+                    if stage_verifier
                     else ""
                 )
                 + "    result = 'SHOWMEWHY\\n\\nNEEDS YOU\\nBoundary evidence remains open.\\n'\n"
@@ -185,6 +190,10 @@ class V5PairRunnerTests(unittest.TestCase):
                 bundle["conditions"]["baseline"]["git"]["diff"]["sha256"],
                 bundle["conditions"]["showmewhy"]["git"]["diff"]["sha256"],
             )
+            self.assertEqual(
+                bundle["conditions"]["baseline"]["git"]["state_sha256"],
+                bundle["conditions"]["showmewhy"]["git"]["state_sha256"],
+            )
 
             pair_dir = output / "fixture-pair"
             baseline_result = (
@@ -275,6 +284,27 @@ class V5PairRunnerTests(unittest.TestCase):
                 bundle["workspace_equivalence"]["post_verification"],
                 "modified",
             )
+
+    def test_index_only_verifier_mutation_invalidates_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            repo, revision = self._repo(root)
+            adapter = self._adapter(root, stage_verifier=True)
+            spec = root / "pair-spec.json"
+            self._spec(
+                spec,
+                revision=revision,
+                adapter=adapter,
+                pair_id="staging-verifier",
+            )
+            with self.assertRaisesRegex(
+                PairRunError, "verification modified"
+            ):
+                run_pair(
+                    spec_path=spec,
+                    source_checkout=repo,
+                    output_root=root / "runs",
+                )
 
     def test_execution_spec_rejects_oracle_leakage(self) -> None:
         with tempfile.TemporaryDirectory() as td:
