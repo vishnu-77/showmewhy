@@ -103,13 +103,13 @@ The pilot now has a complete raw-execution path:
 
 ### Controlled treatment
 
-Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, **Claude Code 2.1.278**, and `v5-code-bare-v1` tool profile.
+Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, **Claude Code 2.1.278**, and `v5-posthoc-bare-v2` tool profile.
 
-The adapter starts Claude Code in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into either condition. The baseline receives no extra verification contract. The ShowMeWhy condition appends the repository's exact canonical `skills/showmewhy/SKILL.md`; its SHA-256 is persisted in `adapter.json`.
+The coding agent runs **once** in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into the task result. The runner then clones that exact completed workspace and baseline answer into a second worktree. ShowMeWhy runs only as a post-hoc verifier against that clone, with no `Edit` or `Write` tools. Its treatment appends the repository's exact canonical `skills/showmewhy/SKILL.md`; the contract SHA-256 is persisted in `adapter.json`. The pair is invalid if the verifier changes the workspace.
 
 This deliberately evaluates the **ShowMeWhy verification contract**, not the optional Bash compression hook. Compression can alter active evidence and is therefore outside the V5 treatment variable.
 
-Each condition persists:
+The task execution and post-hoc verification each persist:
 
 - raw Claude JSON;
 - Claude stderr;
@@ -171,5 +171,5 @@ python evals/v5/record_builder.py assemble \
 
 The builder derives inspection tokens/lines from the exact inspection ledger, keeps counterexample IDs in their own namespace, validates closure/surface invariants, and emits the existing `schema.json` record consumed by `scorer.py`.
 
-A `v5-pair-run-1` bundle remains **raw execution evidence, not a benchmark result** until this labelling/assessment path is complete.
+A `v5-pair-run-2` bundle remains **raw execution evidence, not a benchmark result** until this labelling/assessment path is complete.
 
