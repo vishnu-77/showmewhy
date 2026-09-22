@@ -8,7 +8,7 @@
   "task_prompt_sha256": "2c3af3d09b0391f6707015ab806436671d90489976f07d98169eb6892186af67",
   "model": "claude-sonnet-5",
   "agent_runtime": "claude-code-cli@2.1.278",
-  "tool_profile": "v5-posthoc-bare-v2",
+  "tool_profile": "v5-posthoc-restricted-v2",
   "repeat_index": 0,
   "pair_id": "pytest-warning-module-attribution-r0",
   "command": {
