@@ -47,6 +47,10 @@ ESSENTIAL_ENV = (
     "XDG_CONFIG_HOME",
     "XDG_CACHE_HOME",
     "CLAUDE_CONFIG_DIR",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "CLAUDE_CODE_OAUTH_TOKEN",
 )
 
 PAIR_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -230,9 +234,11 @@ def _build_env(
     spec: dict[str, Any],
 ) -> tuple[dict[str, str], list[str]]:
     env: dict[str, str] = {}
+    inherited_names: set[str] = set()
     for name in ESSENTIAL_ENV:
         if name in os.environ:
             env[name] = os.environ[name]
+            inherited_names.add(name)
 
     missing: list[str] = []
     for name in pass_env:
@@ -240,6 +246,7 @@ def _build_env(
             missing.append(name)
         else:
             env[name] = os.environ[name]
+            inherited_names.add(name)
     if missing:
         raise PairRunError(
             "requested pass_env variables are missing: " + ", ".join(sorted(missing))
@@ -258,7 +265,7 @@ def _build_env(
             "SHOWMEWHY_V5_TOOL_PROFILE": spec["tool_profile"],
         }
     )
-    return env, sorted(set(ESSENTIAL_ENV) | set(pass_env))
+    return env, sorted(inherited_names)
 
 
 def _write_bytes(path: Path, data: bytes) -> dict[str, Any]:
