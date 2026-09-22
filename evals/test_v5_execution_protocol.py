@@ -450,6 +450,8 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         )
         template["baseline"].update(
             {
+                "review_completed_blind_to_ground_truth": True,
+                "mapping_completed_after_timer": True,
                 "inspected_claim_ids": ["C1", "C2"],
                 "detected_failure_ids": [],
                 "detected_counterexample_ids": [],
@@ -458,6 +460,8 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         )
         template["showmewhy"].update(
             {
+                "review_completed_blind_to_ground_truth": True,
+                "mapping_completed_after_timer": True,
                 "surfaced_claim_ids": ["C2"],
                 "verified_claim_ids": ["C1"],
                 "refuted_claim_ids": [],
@@ -468,6 +472,29 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             }
         )
         return template
+
+    def test_assessment_template_does_not_expose_ground_truth_labels(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            pair_path = self._raw_pair(root)
+            gt_path = self._ground_truth(pair_path)
+            template = builder.build_assessment_template(
+                pair_path=pair_path,
+                ground_truth_path=gt_path,
+            )
+            serialised = json.dumps(template)
+            self.assertNotIn("Claim A works", serialised)
+            self.assertNotIn("A concrete boundary input", serialised)
+            self.assertTrue(
+                template["review_protocol"][
+                    "ground_truth_hidden_during_review"
+                ]
+            )
+            self.assertFalse(
+                template["baseline"][
+                    "review_completed_blind_to_ground_truth"
+                ]
+            )
 
     def test_record_builder_hash_anchors_assessment_and_produces_scorer_record(self):
         with tempfile.TemporaryDirectory() as td:
@@ -534,6 +561,35 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                     pair_path=pair_path,
                     ground_truth_path=gt_path,
                     assessment_path=assessment,
+                )
+
+    def test_unblinded_or_in_timer_mapping_assessment_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            pair_path = self._raw_pair(root)
+            gt_path = self._ground_truth(pair_path)
+            assessment = self._completed_assessment(
+                pair_path,
+                gt_path,
+            )
+            assessment["baseline"][
+                "review_completed_blind_to_ground_truth"
+            ] = False
+            assessment_path = (
+                pair_path.parent / "assessment-unblinded.json"
+            )
+            assessment_path.write_text(
+                json.dumps(assessment),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                builder.RecordBuildError,
+                "blind human review",
+            ):
+                builder.assemble_record(
+                    pair_path=pair_path,
+                    ground_truth_path=gt_path,
+                    assessment_path=assessment_path,
                 )
 
     def test_inspection_cost_uses_hash_anchored_files_actually_reviewed(self):
