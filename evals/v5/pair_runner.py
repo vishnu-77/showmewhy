@@ -346,11 +346,10 @@ def _snapshot_patch(workspace: Path, start_revision: str) -> bytes:
         temp_index.unlink(missing_ok=True)
 
 
-def _git_snapshot(
+def _repository_state(
     workspace: Path,
     start_revision: str,
-    output_dir: Path,
-) -> dict[str, Any]:
+) -> tuple[str, bytes, bytes]:
     final_head = (
         _run_git(workspace, "rev-parse", "HEAD")
         .stdout.decode("utf-8", errors="replace")
@@ -360,6 +359,32 @@ def _git_snapshot(
         workspace, "status", "--porcelain=v1", "--untracked-files=all"
     ).stdout
     patch = _snapshot_patch(workspace, start_revision)
+    return final_head, status, patch
+
+
+def _state_fingerprint(
+    final_head: str,
+    status: bytes,
+    patch: bytes,
+) -> str:
+    canonical = (
+        final_head.encode("utf-8")
+        + b"\0"
+        + status
+        + b"\0"
+        + patch
+    )
+    return _sha256_bytes(canonical)
+
+
+def _git_snapshot(
+    workspace: Path,
+    start_revision: str,
+    output_dir: Path,
+) -> dict[str, Any]:
+    final_head, status, patch = _repository_state(
+        workspace, start_revision
+    )
     changed_files = []
     for line in status.decode("utf-8", errors="replace").splitlines():
         if len(line) >= 4:
@@ -368,6 +393,9 @@ def _git_snapshot(
     return {
         "start_revision": start_revision,
         "final_head": final_head,
+        "state_sha256": _state_fingerprint(
+            final_head, status, patch
+        ),
         "status": _write_bytes(output_dir / "workspace.status", status),
         "diff": _write_bytes(output_dir / "workspace.diff", patch),
         "changed_files": changed_files,
@@ -628,11 +656,16 @@ def run_pair(
                 "baseline adapter did not persist a non-empty result.txt"
             )
 
-        baseline_state_hash = baseline["git"]["diff"]["sha256"]
-        pre_verification_patch = _snapshot_patch(
+        baseline_state_hash = baseline["git"]["state_sha256"]
+        pre_head, pre_status, pre_patch = _repository_state(
             workspace, spec["revision"]
         )
-        if _sha256_bytes(pre_verification_patch) != baseline_state_hash:
+        if (
+            _state_fingerprint(
+                pre_head, pre_status, pre_patch
+            )
+            != baseline_state_hash
+        ):
             bundle["workspace_equivalence"][
                 "pre_verification"
             ] = "mismatch"
@@ -660,7 +693,7 @@ def run_pair(
         )
         bundle["conditions"]["showmewhy"] = showmewhy
 
-        if showmewhy["git"]["diff"]["sha256"] != baseline_state_hash:
+        if showmewhy["git"]["state_sha256"] != baseline_state_hash:
             bundle["workspace_equivalence"][
                 "post_verification"
             ] = "modified"
