@@ -48,6 +48,7 @@ ESSENTIAL_ENV = (
     "XDG_CACHE_HOME",
     "CLAUDE_CONFIG_DIR",
     "ANTHROPIC_API_KEY",
+    "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB",
 )
 
 PAIR_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -280,6 +281,7 @@ def _build_env(
     env.update(
         {
             "DISABLE_AUTOUPDATER": "1",
+            "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
             "SHOWMEWHY_V5_CONDITION": condition,
             "SHOWMEWHY_V5_PAIR_ID": pair_id,
             "SHOWMEWHY_V5_PROMPT_SHA256": prompt_hash,
@@ -294,6 +296,7 @@ def _build_env(
     if baseline_result_file is not None:
         env["SHOWMEWHY_V5_BASE_RESULT_FILE"] = str(baseline_result_file)
     inherited_names.add("DISABLE_AUTOUPDATER")
+    inherited_names.add("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB")
     return env, sorted(inherited_names)
 
 
