@@ -41,12 +41,13 @@ For each task:
 2. verify that the recorded reproducer fails for the expected reason;
 3. verify the upstream accepted fix/oracle independently at `accepted_fix_revision`;
 4. freeze the task prompt and verify its SHA-256;
-5. execute the frozen oracle-free spec in `pairs/<task-id>.json` with `pair_runner.py`;
-6. retain the raw Claude JSON, final result, workspace diff/status and adapter metadata for both conditions;
-7. create ground truth with `record_builder.py ground-truth-template` **before inspecting either condition output**;
-8. label material claims, failures, human-review obligations and counterexamples independently, then adjudicate disagreements;
-9. generate an assessment packet from the captured condition outputs, map them to the frozen claim/counterexample IDs, and record every evidence artifact the reviewer actually inspected;
-10. assemble a record conforming to `evals/v5/schema.json` and run `scorer.py`.
+5. execute the coding agent **once** from the frozen oracle-free spec in `pairs/<task-id>.json` with `pair_runner.py`;
+6. clone the exact completed workspace and baseline result, then run ShowMeWhy post-hoc without `Edit`/`Write`; reject the pair if the verifier changes the workspace;
+7. retain the raw Claude JSON, final result, workspace diff/status and adapter metadata for the task result and verification phase;
+8. create ground truth with `record_builder.py ground-truth-template` **before inspecting either captured output**;
+9. label material claims, failures, human-review obligations and counterexamples independently, then adjudicate disagreements;
+10. generate an assessment packet from the captured outputs, map them to the frozen claim/counterexample IDs, and record every evidence artifact the reviewer actually inspected;
+11. assemble a record conforming to `evals/v5/schema.json` and run `scorer.py`.
 
 If step 2 or step 3 is not reproducible in our environment, the task is rejected or repaired before any paired run is counted.
 
@@ -62,7 +63,7 @@ Each selected task now has an oracle-free pair spec under `pairs/`. The six spec
 - exact prompt bytes and SHA-256;
 - `claude-sonnet-5`;
 - `claude-code-cli@2.1.278`;
-- `v5-code-bare-v1`;
+- `v5-posthoc-bare-v2`;
 - repeat index 0;
 - the portable V5 Claude adapter command.
 
