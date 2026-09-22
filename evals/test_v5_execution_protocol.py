@@ -52,7 +52,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                     hashlib.sha256(data["task_prompt"].encode("utf-8")).hexdigest(),
                 )
                 self.assertEqual(data["model"], "claude-sonnet-5")
-                self.assertEqual(data["agent_runtime"], "claude-code-cli")
+                self.assertEqual(data["agent_runtime"], "claude-code-cli@2.1.278")
                 self.assertEqual(data["tool_profile"], "v5-code-bare-v1")
                 self.assertEqual(
                     data["command"]["argv"],
@@ -91,7 +91,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             "SHOWMEWHY_V5_OUTPUT_DIR": str(output),
             "SHOWMEWHY_V5_WORKSPACE": str(workspace),
             "SHOWMEWHY_V5_MODEL": "claude-sonnet-5",
-            "SHOWMEWHY_V5_AGENT_RUNTIME": "claude-code-cli",
+            "SHOWMEWHY_V5_AGENT_RUNTIME": "claude-code-cli@2.1.278",
             "SHOWMEWHY_V5_TOOL_PROFILE": "v5-code-bare-v1",
         }
         calls = []
@@ -178,7 +178,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 "revision": "a" * 40,
                 "task_prompt_sha256": "b" * 64,
                 "model": "claude-sonnet-5",
-                "agent_runtime": "claude-code-cli",
+                "agent_runtime": "claude-code-cli@2.1.278",
                 "tool_profile": "v5-code-bare-v1",
                 "repeat_index": 0,
             },
