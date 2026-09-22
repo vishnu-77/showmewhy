@@ -215,7 +215,6 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                     "material": True,
                     "failing": False,
                     "human_review": False,
-                    "counterexample": False,
                 },
                 {
                     "id": "C2",
@@ -223,8 +222,14 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                     "material": True,
                     "failing": True,
                     "human_review": True,
-                    "counterexample": True,
                 },
+            ],
+            "counterexamples": [
+                {
+                    "id": "X1",
+                    "description": "A concrete boundary input refutes Claim B.",
+                    "claim_ids": ["C2"],
+                }
             ],
         }
         path = pair_path.parent / "ground-truth.json"
@@ -259,6 +264,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             self.assertNotIn("Claim B lacks", serialized)
             self.assertFalse(value["blinded_to_showmewhy"])
             self.assertEqual(value["claims"], [])
+            self.assertEqual(value["counterexamples"], [])
             self.assertEqual(value["pairing"], pair["pairing"])
 
     def test_record_builder_hash_anchors_assessment_and_produces_scorer_record(self):
@@ -282,7 +288,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 "refuted_claim_ids": [],
                 "open_claim_ids": ["C2"],
                 "detected_failure_ids": ["C2"],
-                "detected_counterexample_ids": ["C2"],
+                "detected_counterexample_ids": ["X1"],
                 "verification_seconds": 12.0,
             })
             assessment = pair_path.parent / "assessment.json"
@@ -294,7 +300,9 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 assessment_path=assessment,
             )
             self.assertEqual(record["ground_truth"]["failing_claim_ids"], ["C2"])
+            self.assertEqual(record["ground_truth"]["counterexample_ids"], ["X1"])
             self.assertEqual(record["showmewhy"]["open_claim_ids"], ["C2"])
+            self.assertEqual(record["showmewhy"]["detected_counterexample_ids"], ["X1"])
             self.assertGreater(record["baseline"]["inspection_tokens"], 0)
             self.assertGreater(record["showmewhy"]["inspection_lines"], 0)
 
@@ -307,6 +315,91 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                     pair_path=pair_path,
                     ground_truth_path=gt_path,
                     assessment_path=assessment,
+                )
+
+
+    def test_inspection_cost_uses_hash_anchored_files_actually_reviewed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            pair_path = self._raw_pair(root)
+            gt_path = self._ground_truth(pair_path)
+            pair_dir = pair_path.parent
+
+            extra = pair_dir / "baseline" / "workspace.diff"
+            extra.write_text("diff evidence\n" * 20, encoding="utf-8")
+
+            assessment = builder.build_assessment_template(
+                pair_path=pair_path,
+                ground_truth_path=gt_path,
+            )
+            assessment["baseline"]["inspection_artifacts"].append({
+                "path": "baseline/workspace.diff",
+                "sha256": hashlib.sha256(extra.read_bytes()).hexdigest(),
+            })
+            assessment["baseline"].update({
+                "inspected_claim_ids": ["C1", "C2"],
+                "detected_failure_ids": [],
+                "detected_counterexample_ids": ["X-FALSE-POSITIVE"],
+                "verification_seconds": 20.0,
+            })
+            assessment["showmewhy"].update({
+                "surfaced_claim_ids": ["C2"],
+                "verified_claim_ids": ["C1"],
+                "refuted_claim_ids": [],
+                "open_claim_ids": ["C2"],
+                "detected_failure_ids": ["C2"],
+                "detected_counterexample_ids": ["X1"],
+                "verification_seconds": 8.0,
+            })
+            assessment_path = pair_dir / "assessment-inspection.json"
+            assessment_path.write_text(json.dumps(assessment), encoding="utf-8")
+
+            record = builder.assemble_record(
+                pair_path=pair_path,
+                ground_truth_path=gt_path,
+                assessment_path=assessment_path,
+            )
+            baseline_result = pair_dir / "baseline" / "result.txt"
+            result_only_tokens = max(1, (len(baseline_result.read_bytes()) + 3) // 4)
+            self.assertGreater(record["baseline"]["inspection_tokens"], result_only_tokens)
+            self.assertEqual(
+                record["baseline"]["detected_counterexample_ids"],
+                ["X-FALSE-POSITIVE"],
+            )
+
+    def test_inspection_artifact_hash_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            pair_path = self._raw_pair(root)
+            gt_path = self._ground_truth(pair_path)
+            assessment = builder.build_assessment_template(
+                pair_path=pair_path,
+                ground_truth_path=gt_path,
+            )
+            assessment["baseline"].update({
+                "inspected_claim_ids": ["C1", "C2"],
+                "detected_failure_ids": [],
+                "detected_counterexample_ids": [],
+                "verification_seconds": 10.0,
+            })
+            assessment["showmewhy"].update({
+                "surfaced_claim_ids": ["C2"],
+                "verified_claim_ids": ["C1"],
+                "refuted_claim_ids": [],
+                "open_claim_ids": ["C2"],
+                "detected_failure_ids": ["C2"],
+                "detected_counterexample_ids": ["X1"],
+                "verification_seconds": 5.0,
+            })
+            assessment["baseline"]["inspection_artifacts"][0]["sha256"] = "0" * 64
+            assessment_path = pair_path.parent / "assessment-bad-hash.json"
+            assessment_path.write_text(json.dumps(assessment), encoding="utf-8")
+
+            with self.assertRaisesRegex(builder.RecordBuildError, "hash does not match"):
+                builder.assemble_record(
+                    pair_path=pair_path,
+                    ground_truth_path=gt_path,
+                    assessment_path=assessment_path,
                 )
 
 
