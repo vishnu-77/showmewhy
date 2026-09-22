@@ -8,7 +8,7 @@
   "task_prompt_sha256": "e1145a4157e4f3f5e8984380ec311896262c9216ad6de1754ebb40e2e3318b97",
   "model": "claude-sonnet-5",
   "agent_runtime": "claude-code-cli@2.1.278",
-  "tool_profile": "v5-posthoc-bare-v2",
+  "tool_profile": "v5-posthoc-restricted-v2",
   "repeat_index": 0,
   "pair_id": "fastapi-stream-status-code-r0",
   "command": {
