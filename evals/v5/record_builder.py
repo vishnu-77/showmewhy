@@ -65,8 +65,21 @@ def _pairing_anchor(pair: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_pair(pair: dict[str, Any]) -> None:
-    if pair.get("version") != "v5-pair-run-1":
-        raise RecordBuildError("pair must use v5-pair-run-1")
+    if pair.get("version") != "v5-pair-run-2":
+        raise RecordBuildError("pair must use v5-pair-run-2")
+    if pair.get("design") != "single-task-posthoc-verification":
+        raise RecordBuildError("pair must use the single-task post-hoc design")
+    if pair.get("task_execution_count") != 1:
+        raise RecordBuildError("pair must contain exactly one task-agent execution")
+    if pair.get("execution_order") != ["baseline", "showmewhy"]:
+        raise RecordBuildError("pair execution order must be baseline then showmewhy")
+    equivalence = pair.get("workspace_equivalence")
+    if not isinstance(equivalence, dict):
+        raise RecordBuildError("pair workspace_equivalence is required")
+    if equivalence.get("pre_verification") != "identical":
+        raise RecordBuildError("pair workspace was not identical before verification")
+    if equivalence.get("post_verification") != "identical":
+        raise RecordBuildError("ShowMeWhy verification modified the task workspace")
     if pair.get("pair_status") != "valid":
         raise RecordBuildError("only a valid pair can become scoreable")
     if pair.get("ground_truth_present") is not False:
@@ -74,9 +87,15 @@ def _validate_pair(pair: dict[str, Any]) -> None:
     conditions = pair.get("conditions")
     if not isinstance(conditions, dict) or set(conditions) != {"baseline", "showmewhy"}:
         raise RecordBuildError("pair must contain exactly baseline and showmewhy conditions")
+    expected_roles = {
+        "baseline": "task-agent-result",
+        "showmewhy": "posthoc-verification",
+    }
     for name in ("baseline", "showmewhy"):
         if conditions[name].get("status") != "valid":
             raise RecordBuildError(f"{name} condition is not valid")
+        if conditions[name].get("role") != expected_roles[name]:
+            raise RecordBuildError(f"{name} condition has the wrong role")
 
 
 def build_ground_truth_template(
