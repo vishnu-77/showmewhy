@@ -286,6 +286,40 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
         self.assertNotIn("SHOWMEWHY_V5_OUTPUT_DIR", model_env or {})
 
+    def test_adapter_requires_api_key_for_bare_mode(self):
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name)
+        workspace = root / "workspace"
+        output = root / "baseline"
+        workspace.mkdir()
+        output.mkdir()
+        prompt = root / "prompt.txt"
+        prompt.write_text("Fix the bug.", encoding="utf-8")
+        digest = hashlib.sha256(prompt.read_bytes()).hexdigest()
+        env = {
+            "SHOWMEWHY_V5_CONDITION": "baseline",
+            "SHOWMEWHY_V5_PAIR_ID": "fixture-r0",
+            "SHOWMEWHY_V5_PROMPT_SHA256": digest,
+            "SHOWMEWHY_V5_PROMPT_FILE": str(prompt),
+            "SHOWMEWHY_V5_OUTPUT_DIR": str(output),
+            "SHOWMEWHY_V5_WORKSPACE": str(workspace),
+            "SHOWMEWHY_V5_MODEL": "claude-sonnet-5",
+            "SHOWMEWHY_V5_AGENT_RUNTIME": "claude-code-cli@2.1.278",
+            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-bare-v2",
+        }
+        old_cwd = Path.cwd()
+        try:
+            os.chdir(workspace)
+            with patch.dict(os.environ, env, clear=True):
+                with self.assertRaisesRegex(
+                    adapter.AdapterError,
+                    "ANTHROPIC_API_KEY",
+                ):
+                    adapter.run()
+        finally:
+            os.chdir(old_cwd)
+
     def test_adapter_rejects_runtime_version_drift(self):
         with self.assertRaisesRegex(
             adapter.AdapterError,
