@@ -25,6 +25,32 @@ CONDITIONS = {"baseline", "showmewhy"}
 BASELINE_TOOLS = "Bash,Edit,Read,Write,Glob,Grep"
 VERIFY_TOOLS = "Bash,Read,Glob,Grep"
 
+CLAUDE_ENV_ALLOWLIST = (
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "SystemRoot",
+    "COMSPEC",
+    "PATHEXT",
+    "LANG",
+    "LC_ALL",
+    "TERM",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "ANTHROPIC_API_KEY",
+    "DISABLE_AUTOUPDATER",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+)
+
 
 def _required_env(name: str) -> str:
     value = os.environ.get(name)
@@ -64,18 +90,25 @@ def _expected_cli_version(runtime: str) -> str | None:
 
 def _treatment_prompt(skill_bytes: bytes) -> bytes:
     header = (
-        "SHOWMEWHY V5 POST-HOC VERIFICATION\n\n"
         "You are verifying a completed coding-agent result. The implementation already "
         "exists in the current workspace. Do not implement, edit, rewrite, or otherwise "
         "change repository files. Use observable source/execution evidence to assess the "
         "material claims in the completed result. Apply the canonical ShowMeWhy contract "
         "below. Return only ShowMeWhy's default human surface: the narrowest defensible "
         "result, NEEDS YOU only for material OPEN claims, any material REFUTED result, "
-        "and one DO NEXT action. Do not mention the benchmark or condition. Never expose "
-        "or reconstruct private chain-of-thought.\n\n"
+        "and one DO NEXT action. Never expose or reconstruct private chain-of-thought.\n\n"
         "--- CANONICAL SHOWMEWHY SKILL CONTRACT ---\n"
     ).encode("utf-8")
     return header + skill_bytes
+
+
+def _claude_env() -> dict[str, str]:
+    env: dict[str, str] = {}
+    for name in CLAUDE_ENV_ALLOWLIST:
+        if name in os.environ:
+            env[name] = os.environ[name]
+    env["DISABLE_AUTOUPDATER"] = "1"
+    return env
 
 
 def _verification_user_prompt(task_prompt: str, baseline_result: str) -> str:
@@ -197,6 +230,7 @@ def run() -> int:
     process = subprocess.run(
         argv,
         cwd=workspace,
+        env=_claude_env(),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
