@@ -254,6 +254,7 @@
       "required": [
         "start_revision",
         "final_head",
+        "state_sha256",
         "status",
         "diff",
         "changed_files"
@@ -280,6 +281,9 @@
             "minLength": 1
           },
           "uniqueItems": true
+        },
+        "state_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },
