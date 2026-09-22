@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Claude Code adapter for ground-truth-blind ShowMeWhy V5 paired runs."""
+"""Claude Code adapter for ground-truth-blind ShowMeWhy V5 post-hoc runs."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -21,7 +22,8 @@ class AdapterError(RuntimeError):
 ROOT = Path(__file__).resolve().parents[2]
 SKILL = ROOT / "skills" / "showmewhy" / "SKILL.md"
 CONDITIONS = {"baseline", "showmewhy"}
-TOOLS = "Bash,Edit,Read,Write,Glob,Grep"
+BASELINE_TOOLS = "Bash,Edit,Read,Write,Glob,Grep"
+VERIFY_TOOLS = "Bash,Read,Glob,Grep"
 
 
 def _required_env(name: str) -> str:
@@ -55,20 +57,38 @@ def _claude_version(binary: str) -> str:
     return process.stdout.strip()
 
 
+def _expected_cli_version(runtime: str) -> str | None:
+    match = re.fullmatch(r"claude-code-cli@(\d+\.\d+\.\d+)", runtime)
+    return match.group(1) if match else None
+
+
 def _treatment_prompt(skill_bytes: bytes) -> bytes:
     header = (
-        "SHOWMEWHY V5 CONTROLLED TREATMENT\n\n"
-        "You are running the shipped ShowMeWhy verification contract in a controlled "
-        "paired evaluation. Complete the user's coding task first. Before finalising, "
-        "apply the canonical ShowMeWhy contract below to the material claims in your "
-        "own result. Independently inspect executable/source evidence where available. "
-        "Your final response must use ShowMeWhy's default human surface: narrow result, "
-        "NEEDS YOU only for material OPEN/REFUTED claims, and one DO NEXT action. "
-        "Do not mention this benchmark, its condition, or any hidden ground truth. "
-        "Do not expose private chain-of-thought.\n\n"
+        "SHOWMEWHY V5 POST-HOC VERIFICATION\n\n"
+        "You are verifying a completed coding-agent result. The implementation already "
+        "exists in the current workspace. Do not implement, edit, rewrite, or otherwise "
+        "change repository files. Use observable source/execution evidence to assess the "
+        "material claims in the completed result. Apply the canonical ShowMeWhy contract "
+        "below. Return only ShowMeWhy's default human surface: the narrowest defensible "
+        "result, NEEDS YOU only for material OPEN claims, any material REFUTED result, "
+        "and one DO NEXT action. Do not mention the benchmark or condition. Never expose "
+        "or reconstruct private chain-of-thought.\n\n"
         "--- CANONICAL SHOWMEWHY SKILL CONTRACT ---\n"
     ).encode("utf-8")
     return header + skill_bytes
+
+
+def _verification_user_prompt(task_prompt: str, baseline_result: str) -> str:
+    return (
+        "Verify the completed result below against the current workspace. The workspace "
+        "is an exact clone of the state produced by the coding agent. Do not modify it.\n\n"
+        "<original_task>\n"
+        + task_prompt
+        + "\n</original_task>\n\n"
+        "<completed_agent_result>\n"
+        + baseline_result
+        + "\n</completed_agent_result>\n"
+    )
 
 
 def run() -> int:
@@ -99,22 +119,58 @@ def run() -> int:
         raise AdapterError(
             f"prompt hash mismatch: expected {expected_prompt_hash}, got {prompt_hash}"
         )
-    prompt = prompt_bytes.decode("utf-8")
+    task_prompt = prompt_bytes.decode("utf-8")
 
     claude = shutil.which("claude")
     if not claude:
         raise AdapterError("claude executable was not found on PATH")
 
+    actual_version = _claude_version(claude)
+    expected_cli = _expected_cli_version(runtime)
+    if expected_cli is not None and actual_version != f"{expected_cli} (Claude Code)":
+        raise AdapterError(
+            f"Claude Code runtime mismatch: pair requires {expected_cli}, got {actual_version}"
+        )
+
     skill_bytes = SKILL.read_bytes()
     skill_hash = _sha256_bytes(skill_bytes)
-    treatment_path: Path | None = None
     treatment_hash: str | None = None
+    baseline_result_hash: str | None = None
+
+    if condition == "baseline":
+        user_prompt = task_prompt
+        tools = BASELINE_TOOLS
+        max_turns = "40"
+        treatment = "none"
+    else:
+        baseline_result_file = Path(
+            _required_env("SHOWMEWHY_V5_BASE_RESULT_FILE")
+        ).resolve()
+        if not baseline_result_file.is_file():
+            raise AdapterError(
+                f"baseline result file does not exist: {baseline_result_file}"
+            )
+        baseline_result_bytes = baseline_result_file.read_bytes()
+        baseline_result_hash = _sha256_bytes(baseline_result_bytes)
+        baseline_result = baseline_result_bytes.decode("utf-8")
+        if not baseline_result.strip():
+            raise AdapterError("baseline result is empty")
+
+        treatment_bytes = _treatment_prompt(skill_bytes)
+        treatment_hash = _sha256_bytes(treatment_bytes)
+        treatment_path = output_dir / "showmewhy-treatment.md"
+        treatment_path.write_bytes(treatment_bytes)
+
+        user_prompt = _verification_user_prompt(task_prompt, baseline_result)
+        tools = VERIFY_TOOLS
+        max_turns = "24"
+        treatment = "canonical-skill-posthoc"
 
     argv = [
         claude,
         "--bare",
         "-p",
-        prompt,
+        user_prompt,
         "--model",
         model,
         "--effort",
@@ -125,19 +181,17 @@ def run() -> int:
         "--permission-mode",
         "bypassPermissions",
         "--tools",
-        TOOLS,
+        tools,
         "--max-turns",
-        "40",
+        max_turns,
     ]
-
     if condition == "showmewhy":
-        treatment_bytes = _treatment_prompt(skill_bytes)
-        treatment_hash = _sha256_bytes(treatment_bytes)
-        treatment_path = output_dir / "showmewhy-treatment.md"
-        treatment_path.write_bytes(treatment_bytes)
-        # Keep -p and its task prompt before the appended system prompt. This is also
-        # resilient to CLI versions where option ordering affected print-mode prompts.
-        argv.extend(["--append-system-prompt-file", str(treatment_path)])
+        argv.extend(
+            [
+                "--append-system-prompt-file",
+                str(output_dir / "showmewhy-treatment.md"),
+            ]
+        )
 
     started = time.monotonic()
     process = subprocess.run(
@@ -150,8 +204,12 @@ def run() -> int:
     )
     seconds = round(time.monotonic() - started, 3)
 
-    (output_dir / "claude.stdout.json").write_text(process.stdout, encoding="utf-8")
-    (output_dir / "claude.stderr.log").write_text(process.stderr, encoding="utf-8")
+    (output_dir / "claude.stdout.json").write_text(
+        process.stdout, encoding="utf-8"
+    )
+    (output_dir / "claude.stderr.log").write_text(
+        process.stderr, encoding="utf-8"
+    )
 
     payload: dict[str, Any] | None = None
     parse_error: str | None = None
@@ -170,23 +228,35 @@ def run() -> int:
     session_id = payload.get("session_id") if payload else None
 
     if isinstance(result_text, str):
-        (output_dir / "result.txt").write_text(result_text, encoding="utf-8")
+        (output_dir / "result.txt").write_text(
+            result_text, encoding="utf-8"
+        )
 
-    usage = payload.get("usage") if payload and isinstance(payload.get("usage"), dict) else {}
+    usage = (
+        payload.get("usage")
+        if payload and isinstance(payload.get("usage"), dict)
+        else {}
+    )
     cost = payload.get("total_cost_usd") if payload else None
     metadata = {
-        "version": "v5-claude-adapter-1",
+        "version": "v5-claude-adapter-2",
         "pair_id": pair_id,
         "condition": condition,
+        "role": (
+            "task-agent-result"
+            if condition == "baseline"
+            else "posthoc-verification"
+        ),
         "model_requested": model,
         "agent_runtime": runtime,
         "tool_profile": tool_profile,
-        "claude_version": _claude_version(claude),
+        "claude_version": actual_version,
         "prompt_sha256": prompt_hash,
+        "baseline_result_sha256": baseline_result_hash,
         "canonical_skill_sha256": skill_hash,
-        "treatment": "canonical-skill-system-append" if condition == "showmewhy" else "none",
+        "treatment": treatment,
         "treatment_sha256": treatment_hash,
-        "tools": TOOLS.split(","),
+        "tools": tools.split(","),
         "permission_mode": "bypassPermissions",
         "bare": True,
         "seconds": seconds,
@@ -202,18 +272,19 @@ def run() -> int:
 
     if process.returncode != 0:
         raise AdapterError(
-            f"Claude exited {process.returncode}: {(process.stderr or process.stdout)[-4000:]}"
+            f"Claude exited {process.returncode}: "
+            f"{(process.stderr or process.stdout)[-4000:]}"
         )
     if parse_error:
         raise AdapterError(parse_error)
     if is_error:
         raise AdapterError(
-            f"Claude returned an error result: {str(result_text or payload)[-4000:]}"
+            f"Claude returned an error result: "
+            f"{str(result_text or payload)[-4000:]}"
         )
     if not isinstance(result_text, str) or not result_text.strip():
         raise AdapterError("Claude returned no non-empty result text")
 
-    # Pair runner captures this stdout as immutable condition evidence too.
     print(result_text)
     return 0
 
