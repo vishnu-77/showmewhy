@@ -7,8 +7,7 @@
     "version",
     "task_id",
     "pair_id",
-    "claim_catalog",
-    "counterexample_catalog",
+    "review_protocol",
     "evidence",
     "baseline",
     "showmewhy"
@@ -24,27 +23,6 @@
     "pair_id": {
       "type": "string",
       "minLength": 1
-    },
-    "claim_catalog": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "text"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "text": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
     },
     "evidence": {
       "type": "object",
@@ -68,28 +46,19 @@
     "showmewhy": {
       "$ref": "#/$defs/showmewhy"
     },
-    "counterexample_catalog": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "description",
-          "claim_ids"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1
-          },
-          "claim_ids": {
-            "$ref": "#/$defs/ids"
-          }
+    "review_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ground_truth_hidden_during_review",
+        "id_mapping_after_timer"
+      ],
+      "properties": {
+        "ground_truth_hidden_during_review": {
+          "const": true
+        },
+        "id_mapping_after_timer": {
+          "const": true
         }
       }
     }
@@ -124,6 +93,8 @@
     "baseline": {
       "type": "object",
       "required": [
+        "review_completed_blind_to_ground_truth",
+        "mapping_completed_after_timer",
         "inspection_artifacts",
         "inspected_claim_ids",
         "detected_failure_ids",
@@ -151,12 +122,20 @@
           "items": {
             "$ref": "#/$defs/artifact"
           }
+        },
+        "review_completed_blind_to_ground_truth": {
+          "const": true
+        },
+        "mapping_completed_after_timer": {
+          "const": true
         }
       }
     },
     "showmewhy": {
       "type": "object",
       "required": [
+        "review_completed_blind_to_ground_truth",
+        "mapping_completed_after_timer",
         "inspection_artifacts",
         "surfaced_claim_ids",
         "verified_claim_ids",
@@ -196,6 +175,12 @@
           "items": {
             "$ref": "#/$defs/artifact"
           }
+        },
+        "review_completed_blind_to_ground_truth": {
+          "const": true
+        },
+        "mapping_completed_after_timer": {
+          "const": true
         }
       }
     },
