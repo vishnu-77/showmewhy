@@ -130,9 +130,9 @@ python evals/v5/pair_runner.py \
   --output-dir /path/to/v5-runs
 ```
 
-The command template supports `{python}` and `{showmewhy_repo}` placeholders so committed pair specs stay portable. Claude authentication may come from the normal CLI login or the explicitly inherited `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` environment variables. Secret values are never written to the bundle.
+The command template supports `{python}` and `{showmewhy_repo}` placeholders so committed pair specs stay portable. Claude authentication for this protocol must use `ANTHROPIC_API_KEY`. Claude Code `--bare` deliberately disables OAuth/keychain authentication; the runner also forces `DISABLE_AUTOUPDATER=1` so the pinned CLI cannot drift during a pair. Secret values are never written to the bundle.
 
-For GitHub-hosted execution, run **V5 pilot paired execution** manually after configuring either `V5_ANTHROPIC_API_KEY` or `V5_CLAUDE_OAUTH_TOKEN`. The workflow uploads raw pair evidence only.
+For GitHub-hosted execution, run **V5 pilot paired execution** manually after configuring `V5_ANTHROPIC_API_KEY`. The workflow uploads raw pair evidence only.
 
 ### Blinded labelling and assessment
 
