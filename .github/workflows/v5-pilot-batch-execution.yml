@@ -1,0 +1,138 @@
+name: V5 pilot batch execution
+
+on:
+  push:
+    branches:
+      - eval/v5-pilot-execution-20260922
+    paths:
+      - ".github/workflows/v5-pilot-batch-execution.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pair:
+    name: Pair ${{ matrix.task_id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        task_id:
+          - pytest-monkeypatch-inherited-state
+          - pydantic-validation-schema-alias
+          - pytest-warning-module-attribution
+          - fastapi-sse-line-splitting
+          - fastapi-stream-status-code
+          - ruff-sim117-mixed-sync-async
+
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.V5_ANTHROPIC_API_KEY }}
+      DISABLE_AUTOUPDATER: "1"
+
+    steps:
+      - name: Checkout ShowMeWhy execution branch
+        uses: actions/checkout@v4
+        with:
+          path: showmewhy
+
+      - name: Require explicit Claude authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+            echo "BLOCKED: repository secret V5_ANTHROPIC_API_KEY is not configured." >&2
+            exit 1
+          fi
+
+      - name: Resolve frozen pilot task
+        id: task
+        shell: bash
+        env:
+          TASK_ID: ${{ matrix.task_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          task_id = os.environ["TASK_ID"]
+          manifest = json.loads(Path("showmewhy/evals/v5/pilot/manifest.json").read_text())
+          task = next((t for t in manifest["tasks"] if t["task_id"] == task_id), None)
+          if task is None:
+              raise SystemExit(f"unknown pilot task: {task_id}")
+
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"repository={task['repository']}\n")
+              handle.write(f"revision={task['pre_fix_revision']}\n")
+          PY
+
+      - name: Install pinned Claude Code 2.1.278
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.278
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          test "$(claude --version)" = "2.1.278 (Claude Code)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Checkout pinned upstream subject
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.task.outputs.repository }}
+          ref: ${{ steps.task.outputs.revision }}
+          fetch-depth: 0
+          path: subject
+
+      - name: Execute blinded post-hoc pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v5-pairs"
+          python showmewhy/evals/v5/pair_runner.py             "showmewhy/evals/v5/pilot/pairs/${{ matrix.task_id }}.json"             --source-checkout subject             --output-dir "$RUNNER_TEMP/v5-pairs"
+
+      - name: Verify raw bundle invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          roots = list(Path(os.environ["RUNNER_TEMP"]).glob("v5-pairs/*/pair.json"))
+          if len(roots) != 1:
+              raise SystemExit(f"expected one pair.json, found {len(roots)}")
+          pair = json.loads(roots[0].read_text())
+          required = {
+              "version": "v5-pair-run-2",
+              "design": "single-task-posthoc-verification",
+              "pair_status": "valid",
+              "task_execution_count": 1,
+              "ground_truth_present": False,
+          }
+          for key, expected in required.items():
+              if pair.get(key) != expected:
+                  raise SystemExit(f"{key}: expected {expected!r}, got {pair.get(key)!r}")
+          eq = pair.get("workspace_equivalence", {})
+          if eq.get("pre_verification") != "identical":
+              raise SystemExit("pre-verification workspace mismatch")
+          if eq.get("post_verification") != "identical":
+              raise SystemExit("ShowMeWhy modified the completed workspace")
+          print(roots[0])
+          PY
+
+      - name: Upload raw paired evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v5-pair-${{ matrix.task_id }}
+          path: ${{ runner.temp }}/v5-pairs/
+          if-no-files-found: warn
+          retention-days: 30
