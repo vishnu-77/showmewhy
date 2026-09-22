@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 90
     env:
       ANTHROPIC_API_KEY: ${{ secrets.V5_ANTHROPIC_API_KEY }}
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.V5_CLAUDE_OAUTH_TOKEN }}
+      DISABLE_AUTOUPDATER: "1"
 
     steps:
       - name: Checkout ShowMeWhy
@@ -61,8 +61,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${ANTHROPIC_API_KEY:-}" && -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
-            echo "Configure repository secret V5_ANTHROPIC_API_KEY or V5_CLAUDE_OAUTH_TOKEN before running V5 pairs." >&2
+          if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+            echo "Configure repository secret V5_ANTHROPIC_API_KEY before running V5 pairs. Claude Code --bare does not use OAuth/keychain auth." >&2
             exit 1
           fi
 
