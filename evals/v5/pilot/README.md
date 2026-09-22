@@ -45,7 +45,7 @@ For each task:
 6. retain the raw Claude JSON, final result, workspace diff/status and adapter metadata for both conditions;
 7. create ground truth with `record_builder.py ground-truth-template` **before inspecting either condition output**;
 8. label material claims, failures, human-review obligations and counterexamples independently, then adjudicate disagreements;
-9. generate an assessment packet from the captured condition outputs and map those outputs to the frozen claim IDs;
+9. generate an assessment packet from the captured condition outputs, map them to the frozen claim/counterexample IDs, and record every evidence artifact the reviewer actually inspected;
 10. assemble a record conforming to `evals/v5/schema.json` and run `scorer.py`.
 
 If step 2 or step 3 is not reproducible in our environment, the task is rejected or repaired before any paired run is counted.
@@ -61,7 +61,7 @@ Each selected task now has an oracle-free pair spec under `pairs/`. The six spec
 - the pre-fix revision;
 - exact prompt bytes and SHA-256;
 - `claude-sonnet-5`;
-- `claude-code-cli`;
+- `claude-code-cli@2.1.278`;
 - `v5-code-bare-v1`;
 - repeat index 0;
 - the portable V5 Claude adapter command.
