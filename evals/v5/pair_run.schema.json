@@ -1,27 +1,116 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://showmewhy.dev/schemas/v5-pair-run.json",
-  "title": "ShowMeWhy V5 raw paired execution bundle",
+  "title": "ShowMeWhy V5 raw post-hoc paired execution bundle",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "version",
+    "design",
     "pair_status",
     "task_id",
     "domain",
     "pairing",
     "task_prompt",
     "execution_order",
+    "task_execution_count",
     "command",
     "conditions",
+    "workspace_equivalence",
     "ground_truth_present"
   ],
   "properties": {
-    "version": {"const": "v5-pair-run-1"},
-    "pair_status": {"enum": ["running", "valid", "invalid"]},
-    "task_id": {"type": "string", "minLength": 1},
-    "domain": {"type": "string", "minLength": 1},
+    "version": {
+      "const": "v5-pair-run-2"
+    },
+    "design": {
+      "const": "single-task-posthoc-verification"
+    },
+    "pair_status": {
+      "enum": [
+        "running",
+        "valid",
+        "invalid"
+      ]
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pairing": {
+      "$ref": "#/$defs/pairing"
+    },
+    "task_prompt": {
+      "$ref": "#/$defs/taskPrompt"
+    },
+    "execution_order": {
+      "const": [
+        "baseline",
+        "showmewhy"
+      ]
+    },
+    "task_execution_count": {
+      "const": 1
+    },
+    "command": {
+      "$ref": "#/$defs/command"
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "$ref": "#/$defs/condition"
+        },
+        "showmewhy": {
+          "$ref": "#/$defs/condition"
+        }
+      }
+    },
+    "workspace_equivalence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_verification",
+        "post_verification"
+      ],
+      "properties": {
+        "pre_verification": {
+          "enum": [
+            "not_checked",
+            "identical",
+            "mismatch"
+          ]
+        },
+        "post_verification": {
+          "enum": [
+            "not_checked",
+            "identical",
+            "modified"
+          ]
+        }
+      }
+    },
+    "ground_truth_present": {
+      "const": false
+    },
+    "worktree_root": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "pairing": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "pair_id",
         "repository",
@@ -31,43 +120,206 @@
         "agent_runtime",
         "tool_profile",
         "repeat_index"
-      ]
-    },
-    "task_prompt": {
-      "type": "object",
-      "required": ["path", "sha256", "bytes"]
-    },
-    "execution_order": {
-      "type": "array",
-      "prefixItems": [
-        {"enum": ["baseline", "showmewhy"]},
-        {"enum": ["baseline", "showmewhy"]}
       ],
-      "minItems": 2,
-      "maxItems": 2
-    },
-    "command": {"type": "object"},
-    "conditions": {
-      "type": "object",
       "properties": {
-        "baseline": {"$ref": "#/$defs/condition"},
-        "showmewhy": {"$ref": "#/$defs/condition"}
-      },
-      "additionalProperties": false
+        "pair_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_prompt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent_runtime": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repeat_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     },
-    "ground_truth_present": {"const": false},
-    "worktree_root": {"type": "string"}
-  },
-  "$defs": {
+    "taskPrompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argv_template",
+        "argv",
+        "argv_sha256",
+        "timeout_seconds",
+        "pass_env_names"
+      ],
+      "properties": {
+        "argv_template": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "argv_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pass_env_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
     "artifact": {
       "type": "object",
-      "required": ["path", "sha256", "bytes", "lines"]
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "lines"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lines": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_revision",
+        "final_head",
+        "state_sha256",
+        "status",
+        "diff",
+        "changed_files"
+      ],
+      "properties": {
+        "start_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "final_head": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/artifact"
+        },
+        "diff": {
+          "$ref": "#/$defs/artifact"
+        },
+        "changed_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "state_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "inherited_names",
+        "condition_variable"
+      ],
+      "properties": {
+        "mode": {
+          "const": "minimal-plus-auth-env"
+        },
+        "inherited_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "condition_variable": {
+          "const": "SHOWMEWHY_V5_CONDITION"
+        }
+      }
     },
     "condition": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "condition",
+        "role",
         "status",
+        "started_at",
         "seconds",
         "return_code",
         "timed_out",
@@ -76,7 +328,64 @@
         "git",
         "adapter_artifacts",
         "environment"
-      ]
+      ],
+      "properties": {
+        "condition": {
+          "enum": [
+            "baseline",
+            "showmewhy"
+          ]
+        },
+        "role": {
+          "enum": [
+            "task-agent-result",
+            "posthoc-verification"
+          ]
+        },
+        "status": {
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "started_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "return_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "timed_out": {
+          "type": "boolean"
+        },
+        "stdout": {
+          "$ref": "#/$defs/artifact"
+        },
+        "stderr": {
+          "$ref": "#/$defs/artifact"
+        },
+        "git": {
+          "$ref": "#/$defs/git"
+        },
+        "adapter_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "environment": {
+          "$ref": "#/$defs/environment"
+        }
+      }
     }
   }
 }

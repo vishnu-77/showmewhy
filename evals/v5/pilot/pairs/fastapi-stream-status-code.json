@@ -1,0 +1,22 @@
+{
+  "version": "v5-pair-spec-2",
+  "task_id": "fastapi-stream-status-code",
+  "domain": "runtime-contract",
+  "repository": "fastapi/fastapi",
+  "revision": "b1346bb142c8154950953255eea535e5a83d62eb",
+  "task_prompt": "Investigate FastAPI SSE and JSONL streaming endpoints that return HTTP 200 even when the route declares another status code or a dependency sets Response.status_code, while generated OpenAPI describes the declared response. Align runtime streaming behaviour with the existing response-status semantics without changing the default 200 case, and add control and OpenAPI consistency tests.",
+  "task_prompt_sha256": "e1145a4157e4f3f5e8984380ec311896262c9216ad6de1754ebb40e2e3318b97",
+  "model": "claude-sonnet-5",
+  "agent_runtime": "claude-code-cli@2.1.278",
+  "tool_profile": "v5-posthoc-restricted-v2",
+  "repeat_index": 0,
+  "pair_id": "fastapi-stream-status-code-r0",
+  "command": {
+    "argv": [
+      "{python}",
+      "{showmewhy_repo}/evals/v5/claude_adapter.py"
+    ],
+    "timeout_seconds": 3600,
+    "pass_env": []
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schemas/v5-ground-truth.json",
+  "title": "ShowMeWhy V5 blinded ground truth",
+  "type": "object",
+  "required": [
+    "version",
+    "task_id",
+    "domain",
+    "pairing",
+    "task_prompt",
+    "oracle_refs",
+    "labeler_count",
+    "adjudicated",
+    "blinded_to_showmewhy",
+    "claims",
+    "counterexamples"
+  ],
+  "properties": {
+    "version": {
+      "const": "v5-ground-truth-1"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pairing": {
+      "type": "object"
+    },
+    "task_prompt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "oracle_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "boundary_notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "labeler_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "adjudicated": {
+      "type": "boolean"
+    },
+    "blinded_to_showmewhy": {
+      "const": true
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text",
+          "material",
+          "failing",
+          "human_review"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "material": {
+            "type": "boolean"
+          },
+          "failing": {
+            "type": "boolean"
+          },
+          "human_review": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "claim_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claim_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

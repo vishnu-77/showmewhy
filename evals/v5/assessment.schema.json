@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmewhy.dev/schemas/v5-assessment.json",
+  "title": "ShowMeWhy V5 condition assessment",
+  "type": "object",
+  "required": [
+    "version",
+    "task_id",
+    "pair_id",
+    "review_protocol",
+    "evidence",
+    "baseline",
+    "showmewhy"
+  ],
+  "properties": {
+    "version": {
+      "const": "v5-assessment-1"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pair_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "showmewhy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "$ref": "#/$defs/evidence"
+        },
+        "showmewhy": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "baseline": {
+      "$ref": "#/$defs/baseline"
+    },
+    "showmewhy": {
+      "$ref": "#/$defs/showmewhy"
+    },
+    "review_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ground_truth_hidden_during_review",
+        "id_mapping_after_timer"
+      ],
+      "properties": {
+        "ground_truth_hidden_during_review": {
+          "const": true
+        },
+        "id_mapping_after_timer": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "result_path",
+        "result_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "result_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "required": [
+        "review_completed_blind_to_ground_truth",
+        "mapping_completed_after_timer",
+        "inspection_artifacts",
+        "inspected_claim_ids",
+        "detected_failure_ids",
+        "detected_counterexample_ids",
+        "verification_seconds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inspected_claim_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "detected_failure_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "detected_counterexample_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "verification_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "inspection_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "review_completed_blind_to_ground_truth": {
+          "const": true
+        },
+        "mapping_completed_after_timer": {
+          "const": true
+        }
+      }
+    },
+    "showmewhy": {
+      "type": "object",
+      "required": [
+        "review_completed_blind_to_ground_truth",
+        "mapping_completed_after_timer",
+        "inspection_artifacts",
+        "surfaced_claim_ids",
+        "verified_claim_ids",
+        "refuted_claim_ids",
+        "open_claim_ids",
+        "detected_failure_ids",
+        "detected_counterexample_ids",
+        "verification_seconds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "surfaced_claim_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "verified_claim_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "refuted_claim_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "open_claim_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "detected_failure_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "detected_counterexample_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "verification_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "inspection_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "review_completed_blind_to_ground_truth": {
+          "const": true
+        },
+        "mapping_completed_after_timer": {
+          "const": true
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

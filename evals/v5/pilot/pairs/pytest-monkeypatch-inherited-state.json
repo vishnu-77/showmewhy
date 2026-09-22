@@ -1,0 +1,22 @@
+{
+  "version": "v5-pair-spec-2",
+  "task_id": "pytest-monkeypatch-inherited-state",
+  "domain": "code",
+  "repository": "pytest-dev/pytest",
+  "revision": "51e9a9f148cd2509a31e3fa0d2b1b3204c2b0dd7",
+  "task_prompt": "Investigate and fix pytest MonkeyPatch.setattr()/undo() so patching an inherited instance attribute restores the target to its original state. Preserve correct behaviour for inherited non-data descriptors, methods, direct instance attributes, properties/data descriptors, and slots. Inspect custom attribute-assignment machinery as an explicit boundary and surface any limitation rather than assuming ordinary __dict__ storage. Add focused regression coverage.",
+  "task_prompt_sha256": "b0ed0a189203d513fc032b3f5e235f2e9561e81607cba8e6a7f65ff1553f58af",
+  "model": "claude-sonnet-5",
+  "agent_runtime": "claude-code-cli@2.1.278",
+  "tool_profile": "v5-posthoc-restricted-v2",
+  "repeat_index": 0,
+  "pair_id": "pytest-monkeypatch-inherited-state-r0",
+  "command": {
+    "argv": [
+      "{python}",
+      "{showmewhy_repo}/evals/v5/claude_adapter.py"
+    ],
+    "timeout_seconds": 3600,
+    "pass_env": []
+  }
+}

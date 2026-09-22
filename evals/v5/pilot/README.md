@@ -41,14 +41,36 @@ For each task:
 2. verify that the recorded reproducer fails for the expected reason;
 3. verify the upstream accepted fix/oracle independently at `accepted_fix_revision`;
 4. freeze the task prompt and verify its SHA-256;
-5. run the baseline agent and ShowMeWhy condition with the same model, runtime, tools, repository revision and repeat index;
-6. capture inspection tokens/lines/time and machine-readable claim state;
-7. label ground truth independently, blinded to the ShowMeWhy condition;
-8. adjudicate disagreements;
-9. only then create a record conforming to `evals/v5/schema.json` and score it.
+5. execute the coding agent **once** from the frozen oracle-free spec in `pairs/<task-id>.json` with `pair_runner.py`;
+6. after the coding process exits, run ShowMeWhy as a fresh `--bare` process in that exact completed workspace using the captured baseline result and no `Edit`/`Write`; reject the pair if the Git-visible workspace fingerprint changes;
+7. retain the raw Claude JSON, final result, workspace diff/status and adapter metadata for the task result and verification phase;
+8. create ground truth with `record_builder.py ground-truth-template` **before inspecting either captured output**;
+9. label material claims, failures, human-review obligations and counterexamples independently, then adjudicate disagreements;
+10. generate an assessment packet from the captured outputs, map them to the frozen claim/counterexample IDs, and record every evidence artifact the reviewer actually inspected;
+11. assemble a record conforming to `evals/v5/schema.json` and run `scorer.py`.
 
 If step 2 or step 3 is not reproducible in our environment, the task is rejected or repaired before any paired run is counted.
 
 ## Publication boundary
 
 Upstream merged PRs are **oracle sources**, not evidence that ShowMeWhy performs well. No verification-reduction, failure-recall, false-closure, or counterexample metric may be computed from this selection manifest.
+
+## Frozen execution packet
+
+Each selected task now has an oracle-free pair spec under `pairs/`. The six specs pin:
+
+- the pre-fix revision;
+- exact prompt bytes and SHA-256;
+- `claude-sonnet-5`;
+- `claude-code-cli@2.1.278`;
+- `v5-posthoc-bare-v2`;
+- repeat index 0;
+- the portable V5 Claude adapter command.
+
+The pair specs intentionally contain **no** accepted-fix revision, oracle references, expected failure description or ground-truth labels. `pair_runner.py` rejects those fields recursively if they are introduced.
+
+The ShowMeWhy treatment uses the current repository's canonical `SKILL.md` contract and records its SHA-256. The optional context-compression runtime is excluded from the treatment variable.
+
+## Execution status
+
+The presence of pair specs and a runnable workflow does not change the selection manifest's status. Keep `selection_status=selected_unexecuted` and `execution_status=not_run` until a valid raw pair actually exists for that task. Do not commit guessed measurements back into `manifest.json`.
