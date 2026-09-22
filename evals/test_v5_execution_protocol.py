@@ -135,9 +135,11 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             )
 
         calls: list[list[str]] = []
+        call_envs: list[dict | None] = []
 
         def fake_run(argv, **kwargs):
             calls.append(list(argv))
+            call_envs.append(kwargs.get("env"))
             if argv[1:] == ["--version"]:
                 return SimpleNamespace(
                     returncode=0,
@@ -187,14 +189,14 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 rc = adapter.run()
         finally:
             os.chdir(old_cwd)
-        return output, calls, rc, baseline_result
+        return output, calls, call_envs, rc, baseline_result
 
     @staticmethod
     def _main_invocation(calls: list[list[str]]) -> list[str]:
         return next(call for call in calls if "-p" in call)
 
     def test_adapter_baseline_is_bare_and_has_no_showmewhy_treatment(self):
-        output, calls, rc, _ = self._adapter_run("baseline")
+        output, calls, call_envs, rc, _ = self._adapter_run("baseline")
         self.assertEqual(rc, 0)
         invocation = self._main_invocation(calls)
         self.assertIn("--bare", invocation)
@@ -217,9 +219,15 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             "2.1.278 (Claude Code)",
         )
         self.assertTrue((output / "result.txt").is_file())
+        main_index = next(i for i, call in enumerate(calls) if "-p" in call)
+        model_env = call_envs[main_index]
+        self.assertIsNotNone(model_env)
+        self.assertIn("ANTHROPIC_API_KEY", model_env or {})
+        self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
+        self.assertNotIn("SHOWMEWHY_V5_PAIR_ID", model_env or {})
 
     def test_adapter_showmewhy_is_posthoc_and_has_no_edit_tools(self):
-        output, calls, rc, baseline_result = self._adapter_run(
+        output, calls, call_envs, rc, baseline_result = self._adapter_run(
             "showmewhy"
         )
         self.assertEqual(rc, 0)
@@ -267,6 +275,15 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         self.assertTrue(
             (output / "showmewhy-treatment.md").is_file()
         )
+        treatment = (
+            output / "showmewhy-treatment.md"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("benchmark", treatment.lower())
+        self.assertNotIn("V5", treatment)
+        main_index = next(i for i, call in enumerate(calls) if "-p" in call)
+        model_env = call_envs[main_index]
+        self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
+        self.assertNotIn("SHOWMEWHY_V5_OUTPUT_DIR", model_env or {})
 
     def test_adapter_rejects_runtime_version_drift(self):
         with self.assertRaisesRegex(
