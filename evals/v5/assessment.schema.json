@@ -8,6 +8,7 @@
     "task_id",
     "pair_id",
     "claim_catalog",
+    "counterexample_catalog",
     "evidence",
     "baseline",
     "showmewhy"
@@ -66,6 +67,31 @@
     },
     "showmewhy": {
       "$ref": "#/$defs/showmewhy"
+    },
+    "counterexample_catalog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "claim_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claim_ids": {
+            "$ref": "#/$defs/ids"
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -98,6 +124,7 @@
     "baseline": {
       "type": "object",
       "required": [
+        "inspection_artifacts",
         "inspected_claim_ids",
         "detected_failure_ids",
         "detected_counterexample_ids",
@@ -117,12 +144,20 @@
         "verification_seconds": {
           "type": "number",
           "minimum": 0
+        },
+        "inspection_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
         }
       }
     },
     "showmewhy": {
       "type": "object",
       "required": [
+        "inspection_artifacts",
         "surfaced_claim_ids",
         "verified_claim_ids",
         "refuted_claim_ids",
@@ -154,6 +189,31 @@
         "verification_seconds": {
           "type": "number",
           "minimum": 0
+        },
+        "inspection_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     }
