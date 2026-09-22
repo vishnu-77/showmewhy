@@ -42,7 +42,7 @@ For each task:
 3. verify the upstream accepted fix/oracle independently at `accepted_fix_revision`;
 4. freeze the task prompt and verify its SHA-256;
 5. execute the coding agent **once** from the frozen oracle-free spec in `pairs/<task-id>.json` with `pair_runner.py`;
-6. clone the exact completed workspace and baseline result, then run ShowMeWhy post-hoc without `Edit`/`Write`; reject the pair if the verifier changes the workspace;
+6. after the coding process exits, run ShowMeWhy as a fresh `--bare` process in that exact completed workspace using the captured baseline result and no `Edit`/`Write`; reject the pair if the Git-visible workspace fingerprint changes;
 7. retain the raw Claude JSON, final result, workspace diff/status and adapter metadata for the task result and verification phase;
 8. create ground truth with `record_builder.py ground-truth-template` **before inspecting either captured output**;
 9. label material claims, failures, human-review obligations and counterexamples independently, then adjudicate disagreements;
