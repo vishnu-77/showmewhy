@@ -83,12 +83,14 @@ def _run_git(
     checkout: Path,
     *args: str,
     check: bool = True,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
     process = subprocess.run(
         ["git", "-C", str(checkout), *args],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         check=False,
+        env=env,
     )
     if check and process.returncode != 0:
         output = process.stdout.decode("utf-8", errors="replace")
@@ -307,10 +309,48 @@ def _write_bytes(path: Path, data: bytes) -> dict[str, Any]:
     }
 
 
-def _working_state(
+def _snapshot_patch(workspace: Path, start_revision: str) -> bytes:
+    """Snapshot all Git-visible worktree content without mutating the real index."""
+
+    index_text = (
+        _run_git(workspace, "rev-parse", "--git-path", "index")
+        .stdout.decode("utf-8", errors="replace")
+        .strip()
+    )
+    index_path = Path(index_text)
+    if not index_path.is_absolute():
+        index_path = (workspace / index_path).resolve()
+
+    fd, temp_name = tempfile.mkstemp(prefix="showmewhy-v5-index-")
+    os.close(fd)
+    temp_index = Path(temp_name)
+    try:
+        if index_path.exists():
+            shutil.copy2(index_path, temp_index)
+        else:
+            temp_index.unlink(missing_ok=True)
+
+        env = os.environ.copy()
+        env["GIT_INDEX_FILE"] = str(temp_index)
+        _run_git(workspace, "add", "-A", "--", ".", env=env)
+        return _run_git(
+            workspace,
+            "diff",
+            "--cached",
+            "--binary",
+            start_revision,
+            "--",
+            env=env,
+        ).stdout
+    finally:
+        temp_index.unlink(missing_ok=True)
+
+
+def _git_snapshot(
     workspace: Path,
     start_revision: str,
-) -> tuple[bytes, bytes, list[str], str]:
+    output_dir: Path,
+) -> dict[str, Any]:
     final_head = (
         _run_git(workspace, "rev-parse", "HEAD")
         .stdout.decode("utf-8", errors="replace")
@@ -319,34 +359,17 @@ def _working_state(
     status = _run_git(
         workspace, "status", "--porcelain=v1", "--untracked-files=all"
     ).stdout
-
-    # Intent-to-add lets the diff include ordinary untracked files without
-    # committing them. It is safe inside disposable evaluation worktrees.
-    _run_git(workspace, "add", "-N", "--", ".", check=False)
-    diff = _run_git(
-        workspace, "diff", "--binary", start_revision, "--", check=False
-    ).stdout
-
+    patch = _snapshot_patch(workspace, start_revision)
     changed_files = []
     for line in status.decode("utf-8", errors="replace").splitlines():
         if len(line) >= 4:
             changed_files.append(line[3:])
-    return status, diff, changed_files, final_head
 
-
-def _git_snapshot(
-    workspace: Path,
-    start_revision: str,
-    output_dir: Path,
-) -> dict[str, Any]:
-    status, diff, changed_files, final_head = _working_state(
-        workspace, start_revision
-    )
     return {
         "start_revision": start_revision,
         "final_head": final_head,
         "status": _write_bytes(output_dir / "workspace.status", status),
-        "diff": _write_bytes(output_dir / "workspace.diff", diff),
+        "diff": _write_bytes(output_dir / "workspace.diff", patch),
         "changed_files": changed_files,
     }
 
@@ -466,26 +489,6 @@ def _add_worktree(source: Path, destination: Path, revision: str) -> None:
         )
 
 
-def _apply_baseline_patch(
-    workspace: Path,
-    patch_path: Path,
-) -> None:
-    if patch_path.stat().st_size == 0:
-        return
-    process = subprocess.run(
-        ["git", "-C", str(workspace), "apply", "--binary", str(patch_path)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
-    )
-    if process.returncode != 0:
-        output = process.stdout.decode("utf-8", errors="replace")
-        raise PairRunError(
-            "failed to clone baseline workspace into ShowMeWhy condition: "
-            + output[-8000:]
-        )
-
-
 def _remove_worktree(source: Path, destination: Path) -> None:
     _run_git(
         source,
@@ -583,17 +586,14 @@ def run_pair(
     worktree_root = Path(
         tempfile.mkdtemp(prefix=f"showmewhy-v5-{pair_id}-")
     )
-    baseline_workspace = worktree_root / "baseline"
-    showmewhy_workspace = worktree_root / "showmewhy"
+    workspace = worktree_root / "task"
 
     try:
-        _add_worktree(
-            source_checkout, baseline_workspace, spec["revision"]
-        )
+        _add_worktree(source_checkout, workspace, spec["revision"])
 
         baseline = _run_condition(
             condition="baseline",
-            workspace=baseline_workspace,
+            workspace=workspace,
             output_dir=pair_dir / "baseline",
             prompt_file=prompt_file,
             prompt_hash=prompt_hash,
@@ -628,19 +628,11 @@ def run_pair(
                 "baseline adapter did not persist a non-empty result.txt"
             )
 
-        baseline_diff_path = pair_dir / "baseline" / "workspace.diff"
-        baseline_diff_hash = baseline["git"]["diff"]["sha256"]
-
-        _add_worktree(
-            source_checkout, showmewhy_workspace, spec["revision"]
+        baseline_state_hash = baseline["git"]["diff"]["sha256"]
+        pre_verification_patch = _snapshot_patch(
+            workspace, spec["revision"]
         )
-        _apply_baseline_patch(showmewhy_workspace, baseline_diff_path)
-
-        _, clone_diff, _, _ = _working_state(
-            showmewhy_workspace, spec["revision"]
-        )
-        clone_hash = _sha256_bytes(clone_diff)
-        if clone_hash != baseline_diff_hash:
+        if _sha256_bytes(pre_verification_patch) != baseline_state_hash:
             bundle["workspace_equivalence"][
                 "pre_verification"
             ] = "mismatch"
@@ -650,8 +642,7 @@ def run_pair(
                 encoding="utf-8",
             )
             raise PairRunError(
-                "ShowMeWhy workspace does not exactly match baseline result "
-                "before verification"
+                "completed workspace changed between task execution and verification"
             )
         bundle["workspace_equivalence"][
             "pre_verification"
@@ -659,7 +650,7 @@ def run_pair(
 
         showmewhy = _run_condition(
             condition="showmewhy",
-            workspace=showmewhy_workspace,
+            workspace=workspace,
             output_dir=pair_dir / "showmewhy",
             prompt_file=prompt_file,
             prompt_hash=prompt_hash,
@@ -667,12 +658,12 @@ def run_pair(
             spec=spec,
             baseline_result_file=baseline_result,
         )
-        showmewhy_diff_hash = showmewhy["git"]["diff"]["sha256"]
-        if showmewhy_diff_hash != baseline_diff_hash:
+        bundle["conditions"]["showmewhy"] = showmewhy
+
+        if showmewhy["git"]["diff"]["sha256"] != baseline_state_hash:
             bundle["workspace_equivalence"][
                 "post_verification"
             ] = "modified"
-            bundle["conditions"]["showmewhy"] = showmewhy
             bundle["pair_status"] = "invalid"
             bundle_path.write_text(
                 json.dumps(bundle, indent=2, sort_keys=True) + "\n",
@@ -685,7 +676,6 @@ def run_pair(
         bundle["workspace_equivalence"][
             "post_verification"
         ] = "identical"
-        bundle["conditions"]["showmewhy"] = showmewhy
         valid = showmewhy["status"] == "valid"
         bundle["pair_status"] = "valid" if valid else "invalid"
         bundle_path.write_text(
@@ -699,12 +689,8 @@ def run_pair(
         return bundle
     finally:
         if not keep_worktrees:
-            for destination in (
-                baseline_workspace,
-                showmewhy_workspace,
-            ):
-                if destination.exists():
-                    _remove_worktree(source_checkout, destination)
+            if workspace.exists():
+                _remove_worktree(source_checkout, workspace)
             shutil.rmtree(worktree_root, ignore_errors=True)
         else:
             bundle["worktree_root"] = str(worktree_root)
@@ -717,8 +703,8 @@ def run_pair(
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Run one V5 task agent, clone its exact completed workspace, "
-            "then apply post-hoc ShowMeWhy verification without ground truth."
+            "Run one V5 task agent, then apply post-hoc ShowMeWhy "
+            "verification in the exact same completed workspace without ground truth."
         )
     )
     parser.add_argument(
@@ -740,8 +726,8 @@ def main() -> None:
         "--keep-worktrees",
         action="store_true",
         help=(
-            "Keep temporary worktrees for debugging; paths are recorded "
-            "in pair.json"
+            "Keep the temporary task worktree for debugging; its path is "
+            "recorded in pair.json"
         ),
     )
     args = parser.parse_args()
