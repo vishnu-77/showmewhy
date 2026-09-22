@@ -50,6 +50,21 @@ ESSENTIAL_ENV = (
 )
 
 PAIR_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+SHOWMEWHY_REPO = Path(__file__).resolve().parents[2]
+
+
+def _expand_argv(argv: list[str]) -> list[str]:
+    replacements = {
+        "{python}": os.sys.executable,
+        "{showmewhy_repo}": str(SHOWMEWHY_REPO),
+    }
+    out: list[str] = []
+    for arg in argv:
+        expanded = arg
+        for token, value in replacements.items():
+            expanded = expanded.replace(token, value)
+        out.append(expanded)
+    return out
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -294,7 +309,7 @@ def _run_condition(
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=False)
     command = spec["command"]
-    argv = list(command["argv"])
+    argv = _expand_argv(list(command["argv"]))
     timeout_seconds = int(command.get("timeout_seconds", 3600))
     env, inherited_names = _build_env(
         pass_env=list(command.get("pass_env", [])),
@@ -417,7 +432,8 @@ def run_pair(
     prompt_file = pair_dir / "task.prompt.txt"
     prompt_file.write_bytes(prompt_bytes)
 
-    argv_canonical = json.dumps(spec["command"]["argv"], separators=(",", ":"), ensure_ascii=False)
+    resolved_argv = _expand_argv(list(spec["command"]["argv"]))
+    argv_canonical = json.dumps(resolved_argv, separators=(",", ":"), ensure_ascii=False)
     execution_order = (
         ["baseline", "showmewhy"]
         if spec["repeat_index"] % 2 == 0
@@ -446,7 +462,8 @@ def run_pair(
         },
         "execution_order": execution_order,
         "command": {
-            "argv": spec["command"]["argv"],
+            "argv_template": spec["command"]["argv"],
+            "argv": resolved_argv,
             "argv_sha256": _sha256_text(argv_canonical),
             "timeout_seconds": spec["command"].get("timeout_seconds", 3600),
             "pass_env_names": spec["command"].get("pass_env", []),
