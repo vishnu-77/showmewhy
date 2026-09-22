@@ -114,6 +114,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         digest = hashlib.sha256(prompt.read_bytes()).hexdigest()
 
         env = {
+            "ANTHROPIC_API_KEY": "test-key",
             "SHOWMEWHY_V5_CONDITION": condition,
             "SHOWMEWHY_V5_PAIR_ID": "fixture-r0",
             "SHOWMEWHY_V5_PROMPT_SHA256": digest,
