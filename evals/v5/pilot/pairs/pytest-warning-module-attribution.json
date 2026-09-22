@@ -1,0 +1,22 @@
+{
+  "version": "v5-pair-spec-1",
+  "task_id": "pytest-warning-module-attribution",
+  "domain": "code",
+  "repository": "pytest-dev/pytest",
+  "revision": "f1211ba21d1df2f55cf2ba1523b9d7b6c6a9ef56",
+  "task_prompt": "Investigate pytest.warns handling of unmatched warnings when module-based warning filters are active. Reproduced warnings must be attributed consistently with their original location rather than spuriously matching the warnings module. Add a regression test that distinguishes the incorrect attribution from the intended behaviour.",
+  "task_prompt_sha256": "2c3af3d09b0391f6707015ab806436671d90489976f07d98169eb6892186af67",
+  "model": "claude-sonnet-5",
+  "agent_runtime": "claude-code-cli",
+  "tool_profile": "v5-code-bare-v1",
+  "repeat_index": 0,
+  "pair_id": "pytest-warning-module-attribution-r0",
+  "command": {
+    "argv": [
+      "{python}",
+      "{showmewhy_repo}/evals/v5/claude_adapter.py"
+    ],
+    "timeout_seconds": 3600,
+    "pass_env": []
+  }
+}
