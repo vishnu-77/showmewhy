@@ -137,6 +137,7 @@ def run() -> int:
     model = _required_env("SHOWMEWHY_V5_MODEL")
     runtime = _required_env("SHOWMEWHY_V5_AGENT_RUNTIME")
     tool_profile = _required_env("SHOWMEWHY_V5_TOOL_PROFILE")
+    _required_env("ANTHROPIC_API_KEY")
 
     if Path.cwd().resolve() != workspace:
         raise AdapterError(
