@@ -44,6 +44,7 @@ CLAUDE_ENV_ALLOWLIST = (
     "XDG_CACHE_HOME",
     "ANTHROPIC_API_KEY",
     "DISABLE_AUTOUPDATER",
+    "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB",
     "HTTP_PROXY",
     "HTTPS_PROXY",
     "NO_PROXY",
@@ -108,6 +109,7 @@ def _claude_env() -> dict[str, str]:
         if name in os.environ:
             env[name] = os.environ[name]
     env["DISABLE_AUTOUPDATER"] = "1"
+    env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"] = "1"
     return env
 
 
@@ -203,6 +205,7 @@ def run() -> int:
     argv = [
         claude,
         "--bare",
+        "--restricted",
         "-p",
         user_prompt,
         "--model",
@@ -213,7 +216,11 @@ def run() -> int:
         "json",
         "--no-session-persistence",
         "--permission-mode",
-        "bypassPermissions",
+        "dontAsk",
+        "--permission-prompts",
+        "none",
+        "--allowedTools",
+        *tools.split(","),
         "--tools",
         tools,
         "--max-turns",
@@ -292,7 +299,10 @@ def run() -> int:
         "treatment": treatment,
         "treatment_sha256": treatment_hash,
         "tools": tools.split(","),
-        "permission_mode": "bypassPermissions",
+        "permission_mode": "dontAsk",
+        "permission_prompts": "none",
+        "restricted": True,
+        "subprocess_env_scrub": True,
         "bare": True,
         "seconds": seconds,
         "return_code": process.returncode,
