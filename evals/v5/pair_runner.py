@@ -57,6 +57,14 @@ PAIR_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 SHOWMEWHY_REPO = Path(__file__).resolve().parents[2]
 
 
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _sha256_text(value: str) -> str:
+    return _sha256_bytes(value.encode("utf-8"))
+
+
 def _expand_argv(argv: list[str]) -> list[str]:
     replacements = {
         "{python}": os.sys.executable,
@@ -69,14 +77,6 @@ def _expand_argv(argv: list[str]) -> list[str]:
             expanded = expanded.replace(token, value)
         out.append(expanded)
     return out
-
-
-def _sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def _sha256_text(value: str) -> str:
-    return _sha256_bytes(value.encode("utf-8"))
 
 
 def _run_git(
@@ -92,7 +92,9 @@ def _run_git(
     )
     if check and process.returncode != 0:
         output = process.stdout.decode("utf-8", errors="replace")
-        raise PairRunError(f"git {' '.join(args)} failed ({process.returncode}):\n{output[-8000:]}")
+        raise PairRunError(
+            f"git {' '.join(args)} failed ({process.returncode}):\n{output[-8000:]}"
+        )
     return process
 
 
@@ -121,14 +123,27 @@ def _load_spec(path: Path) -> dict[str, Any]:
         raise PairRunError("pair spec must be a JSON object")
     _walk_forbidden(data)
 
-    if data.get("version") != "v5-pair-spec-1":
-        raise PairRunError("pair spec version must be v5-pair-spec-1")
+    if data.get("version") != "v5-pair-spec-2":
+        raise PairRunError("pair spec version must be v5-pair-spec-2")
 
-    for field in ("task_id", "domain", "repository", "revision", "task_prompt", "model", "agent_runtime", "tool_profile"):
+    for field in (
+        "task_id",
+        "domain",
+        "repository",
+        "revision",
+        "task_prompt",
+        "model",
+        "agent_runtime",
+        "tool_profile",
+    ):
         _require_string(data.get(field), field)
 
     repeat_index = data.get("repeat_index")
-    if not isinstance(repeat_index, int) or isinstance(repeat_index, bool) or repeat_index < 0:
+    if (
+        not isinstance(repeat_index, int)
+        or isinstance(repeat_index, bool)
+        or repeat_index < 0
+    ):
         raise PairRunError("repeat_index must be a non-negative integer")
 
     command = data.get("command")
@@ -156,13 +171,19 @@ def _load_spec(path: Path) -> dict[str, Any]:
         or any(not isinstance(name, str) or not name for name in pass_env)
         or len(pass_env) != len(set(pass_env))
     ):
-        raise PairRunError("command.pass_env must be a unique list of environment-variable names")
+        raise PairRunError(
+            "command.pass_env must be a unique list of environment-variable names"
+        )
 
     prompt_hash = _sha256_text(data["task_prompt"])
     expected_hash = data.get("task_prompt_sha256")
     if expected_hash is not None:
-        if not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
-            raise PairRunError("task_prompt_sha256 must be a lowercase SHA-256 digest")
+        if not isinstance(expected_hash, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", expected_hash
+        ):
+            raise PairRunError(
+                "task_prompt_sha256 must be a lowercase SHA-256 digest"
+            )
         if expected_hash != prompt_hash:
             raise PairRunError("task_prompt_sha256 does not match task_prompt bytes")
 
@@ -170,7 +191,9 @@ def _load_spec(path: Path) -> dict[str, Any]:
     if pair_id is not None:
         _require_string(pair_id, "pair_id")
         if not PAIR_ID_RE.fullmatch(pair_id):
-            raise PairRunError("pair_id may contain only letters, numbers, dot, underscore and dash")
+            raise PairRunError(
+                "pair_id may contain only letters, numbers, dot, underscore and dash"
+            )
 
     allowed_top = {
         "version",
@@ -189,7 +212,9 @@ def _load_spec(path: Path) -> dict[str, Any]:
     }
     unknown = set(data) - allowed_top
     if unknown:
-        raise PairRunError(f"unknown pair spec fields: {', '.join(sorted(unknown))}")
+        raise PairRunError(
+            f"unknown pair spec fields: {', '.join(sorted(unknown))}"
+        )
 
     allowed_command = {"argv", "timeout_seconds", "pass_env"}
     unknown_command = set(command) - allowed_command
@@ -197,7 +222,6 @@ def _load_spec(path: Path) -> dict[str, Any]:
         raise PairRunError(
             f"unknown command fields: {', '.join(sorted(unknown_command))}"
         )
-
     return data
 
 
@@ -218,8 +242,8 @@ def _derive_pair_id(spec: dict[str, Any], prompt_hash: str) -> str:
         ]
     )
     suffix = _sha256_text(canonical)[:12]
-    safe_task = re.sub(r"[^A-Za-z0-9._-]+", "-", spec["task_id"]).strip("-") or "task"
-    return f"{safe_task}-r{spec['repeat_index']}-{suffix}"
+    safe_task = re.sub(r"[^A-Za-z0-9._-]+", "-", spec["task_id"]).strip("-")
+    return f"{safe_task or 'task'}-r{spec['repeat_index']}-{suffix}"
 
 
 def _build_env(
@@ -232,6 +256,7 @@ def _build_env(
     output_dir: Path,
     workspace: Path,
     spec: dict[str, Any],
+    baseline_result_file: Path | None = None,
 ) -> tuple[dict[str, str], list[str]]:
     env: dict[str, str] = {}
     inherited_names: set[str] = set()
@@ -249,7 +274,8 @@ def _build_env(
             inherited_names.add(name)
     if missing:
         raise PairRunError(
-            "requested pass_env variables are missing: " + ", ".join(sorted(missing))
+            "requested pass_env variables are missing: "
+            + ", ".join(sorted(missing))
         )
 
     env.update(
@@ -265,6 +291,8 @@ def _build_env(
             "SHOWMEWHY_V5_TOOL_PROFILE": spec["tool_profile"],
         }
     )
+    if baseline_result_file is not None:
+        env["SHOWMEWHY_V5_BASE_RESULT_FILE"] = str(baseline_result_file)
     return env, sorted(inherited_names)
 
 
@@ -274,32 +302,51 @@ def _write_bytes(path: Path, data: bytes) -> dict[str, Any]:
         "path": path.name,
         "sha256": _sha256_bytes(data),
         "bytes": len(data),
-        "lines": data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0),
+        "lines": data.count(b"\n")
+        + (1 if data and not data.endswith(b"\n") else 0),
     }
 
 
-def _git_snapshot(workspace: Path, start_revision: str, output_dir: Path) -> dict[str, Any]:
+def _working_state(
+    workspace: Path,
+    start_revision: str,
+) -> tuple[bytes, bytes, list[str], str]:
     final_head = (
-        _run_git(workspace, "rev-parse", "HEAD").stdout.decode("utf-8", errors="replace").strip()
+        _run_git(workspace, "rev-parse", "HEAD")
+        .stdout.decode("utf-8", errors="replace")
+        .strip()
     )
-    status = _run_git(workspace, "status", "--porcelain=v1", "--untracked-files=all").stdout
+    status = _run_git(
+        workspace, "status", "--porcelain=v1", "--untracked-files=all"
+    ).stdout
 
-    # Intent-to-add lets the diff include ordinary untracked files without committing them.
+    # Intent-to-add lets the diff include ordinary untracked files without
+    # committing them. It is safe inside disposable evaluation worktrees.
     _run_git(workspace, "add", "-N", "--", ".", check=False)
-    diff = _run_git(workspace, "diff", "--binary", start_revision, "--", check=False).stdout
+    diff = _run_git(
+        workspace, "diff", "--binary", start_revision, "--", check=False
+    ).stdout
 
-    status_meta = _write_bytes(output_dir / "workspace.status", status)
-    diff_meta = _write_bytes(output_dir / "workspace.diff", diff)
     changed_files = []
     for line in status.decode("utf-8", errors="replace").splitlines():
         if len(line) >= 4:
             changed_files.append(line[3:])
+    return status, diff, changed_files, final_head
 
+
+def _git_snapshot(
+    workspace: Path,
+    start_revision: str,
+    output_dir: Path,
+) -> dict[str, Any]:
+    status, diff, changed_files, final_head = _working_state(
+        workspace, start_revision
+    )
     return {
         "start_revision": start_revision,
         "final_head": final_head,
-        "status": status_meta,
-        "diff": diff_meta,
+        "status": _write_bytes(output_dir / "workspace.status", status),
+        "diff": _write_bytes(output_dir / "workspace.diff", diff),
         "changed_files": changed_files,
     }
 
@@ -313,6 +360,7 @@ def _run_condition(
     prompt_hash: str,
     pair_id: str,
     spec: dict[str, Any],
+    baseline_result_file: Path | None = None,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=False)
     command = spec["command"]
@@ -327,6 +375,7 @@ def _run_condition(
         output_dir=output_dir,
         workspace=workspace,
         spec=spec,
+        baseline_result_file=baseline_result_file,
     )
 
     started_wall = datetime.now(timezone.utc).isoformat()
@@ -360,12 +409,20 @@ def _run_condition(
         p.name
         for p in output_dir.iterdir()
         if p.is_file()
-        and p.name not in {"stdout.log", "stderr.log", "workspace.status", "workspace.diff"}
+        and p.name
+        not in {"stdout.log", "stderr.log", "workspace.status", "workspace.diff"}
     )
 
     return {
         "condition": condition,
-        "status": "valid" if return_code == 0 and not timed_out else "invalid",
+        "role": (
+            "task-agent-result"
+            if condition == "baseline"
+            else "posthoc-verification"
+        ),
+        "status": (
+            "valid" if return_code == 0 and not timed_out else "invalid"
+        ),
         "started_at": started_wall,
         "seconds": seconds,
         "return_code": return_code,
@@ -375,7 +432,7 @@ def _run_condition(
         "git": git_meta,
         "adapter_artifacts": adapter_artifacts,
         "environment": {
-            "mode": "minimal-plus-pass-env",
+            "mode": "minimal-plus-auth-env",
             "inherited_names": inherited_names,
             "condition_variable": "SHOWMEWHY_V5_CONDITION",
         },
@@ -395,7 +452,9 @@ def _add_worktree(source: Path, destination: Path, revision: str) -> None:
     )
     if process.returncode != 0:
         output = process.stdout.decode("utf-8", errors="replace")
-        raise PairRunError(f"failed to create worktree: {output[-8000:]}")
+        raise PairRunError(
+            f"failed to create worktree: {output[-8000:]}"
+        )
     actual = (
         _run_git(destination, "rev-parse", "HEAD")
         .stdout.decode("utf-8", errors="replace")
@@ -407,8 +466,35 @@ def _add_worktree(source: Path, destination: Path, revision: str) -> None:
         )
 
 
+def _apply_baseline_patch(
+    workspace: Path,
+    patch_path: Path,
+) -> None:
+    if patch_path.stat().st_size == 0:
+        return
+    process = subprocess.run(
+        ["git", "-C", str(workspace), "apply", "--binary", str(patch_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if process.returncode != 0:
+        output = process.stdout.decode("utf-8", errors="replace")
+        raise PairRunError(
+            "failed to clone baseline workspace into ShowMeWhy condition: "
+            + output[-8000:]
+        )
+
+
 def _remove_worktree(source: Path, destination: Path) -> None:
-    _run_git(source, "worktree", "remove", "--force", str(destination), check=False)
+    _run_git(
+        source,
+        "worktree",
+        "remove",
+        "--force",
+        str(destination),
+        check=False,
+    )
     shutil.rmtree(destination, ignore_errors=True)
 
 
@@ -423,9 +509,13 @@ def run_pair(
     source_checkout = source_checkout.resolve()
     output_root = output_root.resolve()
 
-    probe = _run_git(source_checkout, "rev-parse", "--show-toplevel", check=False)
+    probe = _run_git(
+        source_checkout, "rev-parse", "--show-toplevel", check=False
+    )
     if probe.returncode != 0:
-        raise PairRunError(f"source checkout is not a Git working tree: {source_checkout}")
+        raise PairRunError(
+            f"source checkout is not a Git working tree: {source_checkout}"
+        )
 
     prompt_bytes = spec["task_prompt"].encode("utf-8")
     prompt_hash = _sha256_bytes(prompt_bytes)
@@ -433,22 +523,21 @@ def run_pair(
     pair_dir = output_root / pair_id
     if pair_dir.exists():
         raise PairRunError(
-            f"pair output already exists: {pair_dir}. Use a new repeat_index/pair_id; evidence is append-only."
+            f"pair output already exists: {pair_dir}. "
+            "Use a new repeat_index/pair_id; evidence is append-only."
         )
     pair_dir.mkdir(parents=True, exist_ok=False)
     prompt_file = pair_dir / "task.prompt.txt"
     prompt_file.write_bytes(prompt_bytes)
 
     resolved_argv = _expand_argv(list(spec["command"]["argv"]))
-    argv_canonical = json.dumps(resolved_argv, separators=(",", ":"), ensure_ascii=False)
-    execution_order = (
-        ["baseline", "showmewhy"]
-        if spec["repeat_index"] % 2 == 0
-        else ["showmewhy", "baseline"]
+    argv_canonical = json.dumps(
+        resolved_argv, separators=(",", ":"), ensure_ascii=False
     )
 
     bundle: dict[str, Any] = {
-        "version": "v5-pair-run-1",
+        "version": "v5-pair-run-2",
+        "design": "single-task-posthoc-verification",
         "pair_status": "running",
         "task_id": spec["task_id"],
         "domain": spec["domain"],
@@ -467,50 +556,137 @@ def run_pair(
             "sha256": prompt_hash,
             "bytes": len(prompt_bytes),
         },
-        "execution_order": execution_order,
+        "execution_order": ["baseline", "showmewhy"],
+        "task_execution_count": 1,
         "command": {
             "argv_template": spec["command"]["argv"],
             "argv": resolved_argv,
             "argv_sha256": _sha256_text(argv_canonical),
-            "timeout_seconds": spec["command"].get("timeout_seconds", 3600),
+            "timeout_seconds": spec["command"].get(
+                "timeout_seconds", 3600
+            ),
             "pass_env_names": spec["command"].get("pass_env", []),
         },
         "conditions": {},
+        "workspace_equivalence": {
+            "pre_verification": "not_checked",
+            "post_verification": "not_checked",
+        },
         "ground_truth_present": False,
     }
     bundle_path = pair_dir / "pair.json"
-    bundle_path.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    bundle_path.write_text(
+        json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
-    worktree_root = Path(tempfile.mkdtemp(prefix=f"showmewhy-v5-{pair_id}-"))
-    worktrees = {
-        "baseline": worktree_root / "baseline",
-        "showmewhy": worktree_root / "showmewhy",
-    }
+    worktree_root = Path(
+        tempfile.mkdtemp(prefix=f"showmewhy-v5-{pair_id}-")
+    )
+    baseline_workspace = worktree_root / "baseline"
+    showmewhy_workspace = worktree_root / "showmewhy"
 
     try:
-        for condition in ("baseline", "showmewhy"):
-            _add_worktree(source_checkout, worktrees[condition], spec["revision"])
+        _add_worktree(
+            source_checkout, baseline_workspace, spec["revision"]
+        )
 
-        for condition in execution_order:
-            result = _run_condition(
-                condition=condition,
-                workspace=worktrees[condition],
-                output_dir=pair_dir / condition,
-                prompt_file=prompt_file,
-                prompt_hash=prompt_hash,
-                pair_id=pair_id,
-                spec=spec,
-            )
-            bundle["conditions"][condition] = result
+        baseline = _run_condition(
+            condition="baseline",
+            workspace=baseline_workspace,
+            output_dir=pair_dir / "baseline",
+            prompt_file=prompt_file,
+            prompt_hash=prompt_hash,
+            pair_id=pair_id,
+            spec=spec,
+        )
+        bundle["conditions"]["baseline"] = baseline
+        bundle_path.write_text(
+            json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        if baseline["status"] != "valid":
+            bundle["pair_status"] = "invalid"
             bundle_path.write_text(
                 json.dumps(bundle, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
+            raise PairRunError(
+                f"baseline task execution is invalid; inspect {bundle_path}"
+            )
 
-        valid = all(
-            bundle["conditions"].get(condition, {}).get("status") == "valid"
-            for condition in ("baseline", "showmewhy")
+        baseline_result = pair_dir / "baseline" / "result.txt"
+        if not baseline_result.is_file() or not baseline_result.read_text(
+            encoding="utf-8"
+        ).strip():
+            bundle["pair_status"] = "invalid"
+            bundle_path.write_text(
+                json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            raise PairRunError(
+                "baseline adapter did not persist a non-empty result.txt"
+            )
+
+        baseline_diff_path = pair_dir / "baseline" / "workspace.diff"
+        baseline_diff_hash = baseline["git"]["diff"]["sha256"]
+
+        _add_worktree(
+            source_checkout, showmewhy_workspace, spec["revision"]
         )
+        _apply_baseline_patch(showmewhy_workspace, baseline_diff_path)
+
+        _, clone_diff, _, _ = _working_state(
+            showmewhy_workspace, spec["revision"]
+        )
+        clone_hash = _sha256_bytes(clone_diff)
+        if clone_hash != baseline_diff_hash:
+            bundle["workspace_equivalence"][
+                "pre_verification"
+            ] = "mismatch"
+            bundle["pair_status"] = "invalid"
+            bundle_path.write_text(
+                json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            raise PairRunError(
+                "ShowMeWhy workspace does not exactly match baseline result "
+                "before verification"
+            )
+        bundle["workspace_equivalence"][
+            "pre_verification"
+        ] = "identical"
+
+        showmewhy = _run_condition(
+            condition="showmewhy",
+            workspace=showmewhy_workspace,
+            output_dir=pair_dir / "showmewhy",
+            prompt_file=prompt_file,
+            prompt_hash=prompt_hash,
+            pair_id=pair_id,
+            spec=spec,
+            baseline_result_file=baseline_result,
+        )
+        showmewhy_diff_hash = showmewhy["git"]["diff"]["sha256"]
+        if showmewhy_diff_hash != baseline_diff_hash:
+            bundle["workspace_equivalence"][
+                "post_verification"
+            ] = "modified"
+            bundle["conditions"]["showmewhy"] = showmewhy
+            bundle["pair_status"] = "invalid"
+            bundle_path.write_text(
+                json.dumps(bundle, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            raise PairRunError(
+                "ShowMeWhy verification modified the completed task workspace"
+            )
+
+        bundle["workspace_equivalence"][
+            "post_verification"
+        ] = "identical"
+        bundle["conditions"]["showmewhy"] = showmewhy
+        valid = showmewhy["status"] == "valid"
         bundle["pair_status"] = "valid" if valid else "invalid"
         bundle_path.write_text(
             json.dumps(bundle, indent=2, sort_keys=True) + "\n",
@@ -518,12 +694,15 @@ def run_pair(
         )
         if not valid:
             raise PairRunError(
-                f"paired execution is invalid; inspect {bundle_path} and condition logs"
+                f"post-hoc ShowMeWhy verification is invalid; inspect {bundle_path}"
             )
         return bundle
     finally:
         if not keep_worktrees:
-            for destination in worktrees.values():
+            for destination in (
+                baseline_workspace,
+                showmewhy_workspace,
+            ):
                 if destination.exists():
                     _remove_worktree(source_checkout, destination)
             shutil.rmtree(worktree_root, ignore_errors=True)
@@ -538,11 +717,13 @@ def run_pair(
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Run a ground-truth-blind V5 baseline/ShowMeWhy pair from the same Git revision "
-            "and persist immutable execution evidence."
+            "Run one V5 task agent, clone its exact completed workspace, "
+            "then apply post-hoc ShowMeWhy verification without ground truth."
         )
     )
-    parser.add_argument("spec", type=Path, help="v5-pair-spec-1 JSON file")
+    parser.add_argument(
+        "spec", type=Path, help="v5-pair-spec-2 JSON file"
+    )
     parser.add_argument(
         "--source-checkout",
         type=Path,
@@ -558,7 +739,10 @@ def main() -> None:
     parser.add_argument(
         "--keep-worktrees",
         action="store_true",
-        help="Keep temporary condition worktrees for debugging; paths are recorded in pair.json",
+        help=(
+            "Keep temporary worktrees for debugging; paths are recorded "
+            "in pair.json"
+        ),
     )
     args = parser.parse_args()
 
