@@ -157,7 +157,7 @@ python evals/v5/record_builder.py assessment-template \
   --out assessment.json
 ```
 
-The assessment maps observed baseline/ShowMeWhy outputs to the already-frozen claim IDs and records human verification time. It also maintains an **inspection ledger**: every text artifact the reviewer actually opens must be listed by relative path and SHA-256. The builder derives inspection tokens/lines only from that hash-anchored ledger. Each captured `result.txt` is included by default; if the reviewer opens a diff, test log, source extract, or other evidence, it must be added before assembly. Changing any recorded artifact after assessment invalidates assembly.
+The assessment template exposes the captured condition outputs but **not** ground-truth claim labels or known counterexample descriptions during the timed review. The reviewer records verification time and an **inspection ledger**: every text artifact actually opened must be listed by relative path and SHA-256. The timer stops before ground-truth ID mapping; claim/counterexample IDs are mapped afterwards. The builder refuses an assessment that does not attest this ordering. It derives inspection tokens/lines only from the hash-anchored ledger. Each captured `result.txt` is included by default; if the reviewer opens a diff, test log, source extract, or other evidence, it must be added before assembly. Changing any recorded artifact after assessment invalidates assembly.
 
 Finally:
 
