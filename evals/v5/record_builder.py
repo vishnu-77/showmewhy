@@ -290,21 +290,14 @@ def build_assessment_template(
         "version": "v5-assessment-1",
         "task_id": pair["task_id"],
         "pair_id": pair["pairing"]["pair_id"],
-        "claim_catalog": [
-            {"id": claim["id"], "text": claim["text"]}
-            for claim in claims
-            if claim["id"] in material
-        ],
-        "counterexample_catalog": [
-            {
-                "id": item["id"],
-                "description": item["description"],
-                "claim_ids": item["claim_ids"],
-            }
-            for item in counterexamples
-        ],
+        "review_protocol": {
+            "ground_truth_hidden_during_review": True,
+            "id_mapping_after_timer": True,
+        },
         "evidence": evidence,
         "baseline": {
+            "review_completed_blind_to_ground_truth": False,
+            "mapping_completed_after_timer": False,
             "inspection_artifacts": [{
                 "path": evidence["baseline"]["result_path"],
                 "sha256": evidence["baseline"]["result_sha256"],
@@ -315,6 +308,8 @@ def build_assessment_template(
             "verification_seconds": None,
         },
         "showmewhy": {
+            "review_completed_blind_to_ground_truth": False,
+            "mapping_completed_after_timer": False,
             "inspection_artifacts": [{
                 "path": evidence["showmewhy"]["result_path"],
                 "sha256": evidence["showmewhy"]["result_sha256"],
@@ -444,6 +439,24 @@ def assemble_record(
     showmewhy = assessment.get("showmewhy")
     if not isinstance(baseline, dict) or not isinstance(showmewhy, dict):
         raise RecordBuildError("assessment baseline/showmewhy blocks are required")
+
+    protocol = assessment.get("review_protocol")
+    if not isinstance(protocol, dict):
+        raise RecordBuildError("assessment.review_protocol is required")
+    if protocol.get("ground_truth_hidden_during_review") is not True:
+        raise RecordBuildError("timed review must be blind to ground truth")
+    if protocol.get("id_mapping_after_timer") is not True:
+        raise RecordBuildError("claim/counterexample ID mapping must occur after the review timer")
+
+    for name, block in (("baseline", baseline), ("showmewhy", showmewhy)):
+        if block.get("review_completed_blind_to_ground_truth") is not True:
+            raise RecordBuildError(
+                f"assessment.{name} must attest blind human review"
+            )
+        if block.get("mapping_completed_after_timer") is not True:
+            raise RecordBuildError(
+                f"assessment.{name} must map IDs only after timed review"
+            )
 
     baseline_ids = {
         "inspected_claim_ids": _ids(
