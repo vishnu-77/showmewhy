@@ -27,7 +27,7 @@ The benchmark must never optimise surface reduction independently of failure rec
 - inspection-line reduction;
 - verification-time reduction.
 
-These are paired against the same task executed without ShowMeWhy.
+These are measured against the same completed task result: the baseline is the coding agent's original answer, while ShowMeWhy is a post-hoc verification surface over that exact answer and workspace.
 
 ## Corpus protocol
 
@@ -105,7 +105,7 @@ The pilot now has a complete raw-execution path:
 
 Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, **Claude Code 2.1.278**, and `v5-posthoc-bare-v2` tool profile.
 
-The coding agent runs **once** in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into the task result. The runner then clones that exact completed workspace and baseline answer into a second worktree. ShowMeWhy runs only as a post-hoc verifier against that clone, with no `Edit` or `Write` tools. Its treatment appends the repository's exact canonical `skills/showmewhy/SKILL.md`; the contract SHA-256 is persisted in `adapter.json`. The pair is invalid if the verifier changes the workspace.
+The coding agent runs **once** in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into the task result. After that process exits, ShowMeWhy starts as a fresh `--bare` Claude process in the **same completed workspace**, using the captured baseline answer and no `Edit` or `Write` tools. This preserves the exact repository state plus ignored build/test artifacts produced by the task run. The runner fingerprints all Git-visible workspace content before and after verification and invalidates the pair if it changes. The treatment appends the repository's exact canonical `skills/showmewhy/SKILL.md`; the contract SHA-256 is persisted in `adapter.json`.
 
 This deliberately evaluates the **ShowMeWhy verification contract**, not the optional Bash compression hook. Compression can alter active evidence and is therefore outside the V5 treatment variable.
 
