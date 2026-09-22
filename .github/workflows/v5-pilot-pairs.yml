@@ -66,13 +66,14 @@ jobs:
             exit 1
           fi
 
-      - name: Install stable Claude Code
+      - name: Install pinned Claude Code 2.1.278
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL https://claude.ai/install.sh | bash -s stable
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.278
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
+          test "$(claude --version)" = "2.1.278 (Claude Code)"
           claude --version
 
       - name: Set up Python
