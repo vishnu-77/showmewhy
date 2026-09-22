@@ -103,7 +103,7 @@ The pilot now has a complete raw-execution path:
 
 ### Controlled treatment
 
-Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, Claude Code runtime and `v5-code-bare-v1` tool profile.
+Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, **Claude Code 2.1.278**, and `v5-code-bare-v1` tool profile.
 
 The adapter starts Claude Code in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into either condition. The baseline receives no extra verification contract. The ShowMeWhy condition appends the repository's exact canonical `skills/showmewhy/SKILL.md`; its SHA-256 is persisted in `adapter.json`.
 
@@ -157,7 +157,7 @@ python evals/v5/record_builder.py assessment-template \
   --out assessment.json
 ```
 
-The assessment maps observed baseline/ShowMeWhy outputs to the already-frozen claim IDs and records human verification time. It is cryptographically anchored to each captured `result.txt`; changing either result after assessment invalidates assembly.
+The assessment maps observed baseline/ShowMeWhy outputs to the already-frozen claim IDs and records human verification time. It also maintains an **inspection ledger**: every text artifact the reviewer actually opens must be listed by relative path and SHA-256. The builder derives inspection tokens/lines only from that hash-anchored ledger. Each captured `result.txt` is included by default; if the reviewer opens a diff, test log, source extract, or other evidence, it must be added before assembly. Changing any recorded artifact after assessment invalidates assembly.
 
 Finally:
 
@@ -169,7 +169,7 @@ python evals/v5/record_builder.py assemble \
   --out scoreable-record.json
 ```
 
-The builder derives inspection tokens/lines from the exact final human-visible result, validates closure/surface invariants, and emits the existing `schema.json` record consumed by `scorer.py`.
+The builder derives inspection tokens/lines from the exact inspection ledger, keeps counterexample IDs in their own namespace, validates closure/surface invariants, and emits the existing `schema.json` record consumed by `scorer.py`.
 
 A `v5-pair-run-1` bundle remains **raw execution evidence, not a benchmark result** until this labelling/assessment path is complete.
 
