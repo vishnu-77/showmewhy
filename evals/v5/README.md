@@ -93,66 +93,83 @@ Do not publish a claim such as “ShowMeWhy reduces verification by X%” until 
 
 ## Paired execution
 
-`pair_runner.py` executes the baseline and ShowMeWhy conditions without access to benchmark ground truth.
+The pilot now has a complete raw-execution path:
 
-The execution specification is intentionally separate from the scored V5 record. It may contain the task prompt, pinned repository revision, model/runtime/tool profile and adapter command, but the runner rejects oracle/ground-truth fields such as `failing_claim_ids`, `oracle_refs` and `accepted_fix_revision`.
+- `pilot/pairs/*.json` — six frozen, oracle-free pair specifications;
+- `pair_runner.py` — isolated paired worktrees and append-only evidence capture;
+- `claude_adapter.py` — controlled Claude Code invocation;
+- `record_builder.py` — blinded ground-truth template, assessment packet and scorer-record assembly;
+- `.github/workflows/v5-pilot-pairs.yml` — manual authenticated execution, never an automatic effectiveness claim.
 
-Each pair:
+### Controlled treatment
 
-1. hashes the exact task-prompt bytes;
-2. creates two detached Git worktrees at the same pinned revision;
-3. executes the **same argv** in each worktree;
-4. exposes the treatment only through `SHOWMEWHY_V5_CONDITION=baseline|showmewhy`;
-5. counterbalances execution order by repeat index (even: baseline first, odd: ShowMeWhy first);
-6. persists stdout, stderr, Git status, a binary diff and adapter-produced artifacts;
-7. rejects timed-out/non-zero condition runs as an invalid pair;
-8. removes worktrees after capture unless `--keep-worktrees` is explicitly requested.
+Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, Claude Code runtime and `v5-code-bare-v1` tool profile.
 
-Pair evidence is append-only: an existing `pair_id` is never overwritten.
+The adapter starts Claude Code in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into either condition. The baseline receives no extra verification contract. The ShowMeWhy condition appends the repository's exact canonical `skills/showmewhy/SKILL.md`; its SHA-256 is persisted in `adapter.json`.
 
-Example execution specification:
+This deliberately evaluates the **ShowMeWhy verification contract**, not the optional Bash compression hook. Compression can alter active evidence and is therefore outside the V5 treatment variable.
 
-```json
-{
-  "version": "v5-pair-spec-1",
-  "task_id": "pytest-monkeypatch-inherited-state",
-  "domain": "code",
-  "repository": "pytest-dev/pytest",
-  "revision": "<pinned-pre-fix-sha>",
-  "task_prompt": "<exact frozen task prompt>",
-  "task_prompt_sha256": "<sha256>",
-  "model": "<exact model id>",
-  "agent_runtime": "claude-code",
-  "tool_profile": "v5-code-default",
-  "repeat_index": 0,
-  "command": {
-    "argv": ["python", "/absolute/path/to/v5-agent-adapter.py"],
-    "timeout_seconds": 3600,
-    "pass_env": ["ANTHROPIC_API_KEY"]
-  }
-}
-```
+Each condition persists:
 
-Run it against a local checkout that already contains the pinned revision:
+- raw Claude JSON;
+- Claude stderr;
+- final `result.txt`;
+- adapter metadata including Claude version, model, usage/cost metadata and treatment hash;
+- workspace status and binary diff captured by the pair runner.
+
+A CLI success code is insufficient: the adapter also rejects malformed JSON, `is_error=true`, and empty final results.
+
+### Run one frozen pilot pair
+
+Use a checkout of the upstream subject containing the pinned revision:
 
 ```bash
-python evals/v5/pair_runner.py pair-spec.json \
-  --source-checkout /path/to/upstream/repository \
+python evals/v5/pair_runner.py \
+  evals/v5/pilot/pairs/pytest-monkeypatch-inherited-state.json \
+  --source-checkout /path/to/pytest \
   --output-dir /path/to/v5-runs
 ```
 
-The adapter receives the same prompt/model/tool metadata in both conditions through environment variables:
+The command template supports `{python}` and `{showmewhy_repo}` placeholders so committed pair specs stay portable. Claude authentication may come from the normal CLI login or the explicitly inherited `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` environment variables. Secret values are never written to the bundle.
 
-- `SHOWMEWHY_V5_CONDITION`
-- `SHOWMEWHY_V5_PAIR_ID`
-- `SHOWMEWHY_V5_PROMPT_SHA256`
-- `SHOWMEWHY_V5_PROMPT_FILE`
-- `SHOWMEWHY_V5_OUTPUT_DIR`
-- `SHOWMEWHY_V5_WORKSPACE`
-- `SHOWMEWHY_V5_MODEL`
-- `SHOWMEWHY_V5_AGENT_RUNTIME`
-- `SHOWMEWHY_V5_TOOL_PROFILE`
+For GitHub-hosted execution, run **V5 pilot paired execution** manually after configuring either `V5_ANTHROPIC_API_KEY` or `V5_CLAUDE_OAUTH_TOKEN`. The workflow uploads raw pair evidence only.
 
-The adapter is responsible for applying the intended treatment: the baseline path must produce the ordinary agent result without invoking ShowMeWhy; the `showmewhy` path must run the same task and then apply ShowMeWhy to that result. The adapter must not read benchmark oracle/ground-truth data.
+### Blinded labelling and assessment
 
-A `v5-pair-run-1` bundle is **raw execution evidence, not a benchmark score**. It becomes scoreable only after independent blinded labelling maps the captured evidence into the existing `schema.json` record contract.
+A raw pair is not scoreable. First create the ground-truth packet:
+
+```bash
+python evals/v5/record_builder.py ground-truth-template \
+  --manifest evals/v5/pilot/manifest.json \
+  --pair /path/to/pair/pair.json \
+  --task-id pytest-monkeypatch-inherited-state \
+  --out ground-truth.json
+```
+
+This operation does **not** open either condition's `result.txt`, stdout, diff or adapter metadata. The independent labeler fills `claims`, `labeler_count`, adjudication state, and explicitly sets `blinded_to_showmewhy=true` only when that procedure was actually followed.
+
+Then generate an assessment packet:
+
+```bash
+python evals/v5/record_builder.py assessment-template \
+  --pair /path/to/pair/pair.json \
+  --ground-truth ground-truth.json \
+  --out assessment.json
+```
+
+The assessment maps observed baseline/ShowMeWhy outputs to the already-frozen claim IDs and records human verification time. It is cryptographically anchored to each captured `result.txt`; changing either result after assessment invalidates assembly.
+
+Finally:
+
+```bash
+python evals/v5/record_builder.py assemble \
+  --pair /path/to/pair/pair.json \
+  --ground-truth ground-truth.json \
+  --assessment assessment.json \
+  --out scoreable-record.json
+```
+
+The builder derives inspection tokens/lines from the exact final human-visible result, validates closure/surface invariants, and emits the existing `schema.json` record consumed by `scorer.py`.
+
+A `v5-pair-run-1` bundle remains **raw execution evidence, not a benchmark result** until this labelling/assessment path is complete.
+
