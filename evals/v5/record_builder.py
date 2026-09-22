@@ -126,13 +126,14 @@ def build_ground_truth_template(
         "adjudicated": False,
         "blinded_to_showmewhy": False,
         "claims": [],
+        "counterexamples": [],
     }
 
 
 def _validate_ground_truth(
     ground_truth: dict[str, Any],
     pair: dict[str, Any],
-) -> tuple[list[dict[str, Any]], set[str]]:
+) -> tuple[list[dict[str, Any]], set[str], list[dict[str, Any]]]:
     if ground_truth.get("version") != "v5-ground-truth-1":
         raise RecordBuildError("ground truth must use v5-ground-truth-1")
     if ground_truth.get("task_id") != pair.get("task_id"):
@@ -165,6 +166,12 @@ def _validate_ground_truth(
     for index, claim in enumerate(claims):
         if not isinstance(claim, dict):
             raise RecordBuildError(f"ground_truth.claims[{index}] must be an object")
+        allowed = {"id", "text", "material", "failing", "human_review"}
+        extra = sorted(set(claim) - allowed)
+        if extra:
+            raise RecordBuildError(
+                f"ground_truth.claims[{index}] has unsupported field(s): {', '.join(extra)}"
+            )
         cid = claim.get("id")
         text = claim.get("text")
         if not isinstance(cid, str) or not cid:
@@ -174,7 +181,7 @@ def _validate_ground_truth(
         seen.add(cid)
         if not isinstance(text, str) or not text.strip():
             raise RecordBuildError(f"ground_truth.claims[{index}].text is required")
-        for flag in ("material", "failing", "human_review", "counterexample"):
+        for flag in ("material", "failing", "human_review"):
             if not isinstance(claim.get(flag), bool):
                 raise RecordBuildError(
                     f"ground_truth.claims[{index}].{flag} must be boolean"
@@ -187,7 +194,54 @@ def _validate_ground_truth(
             )
     if not material:
         raise RecordBuildError("ground truth must contain at least one material claim")
-    return claims, material
+
+    counterexamples = ground_truth.get("counterexamples")
+    if not isinstance(counterexamples, list):
+        raise RecordBuildError("ground truth counterexamples must be a list")
+    seen_counterexamples: set[str] = set()
+    for index, item in enumerate(counterexamples):
+        if not isinstance(item, dict):
+            raise RecordBuildError(
+                f"ground_truth.counterexamples[{index}] must be an object"
+            )
+        allowed = {"id", "description", "claim_ids"}
+        extra = sorted(set(item) - allowed)
+        if extra:
+            raise RecordBuildError(
+                f"ground_truth.counterexamples[{index}] has unsupported field(s): "
+                + ", ".join(extra)
+            )
+        counterexample_id = item.get("id")
+        description = item.get("description")
+        if not isinstance(counterexample_id, str) or not counterexample_id:
+            raise RecordBuildError(
+                f"ground_truth.counterexamples[{index}].id is required"
+            )
+        if counterexample_id in seen_counterexamples:
+            raise RecordBuildError(
+                f"duplicate ground truth counterexample id: {counterexample_id}"
+            )
+        seen_counterexamples.add(counterexample_id)
+        if not isinstance(description, str) or not description.strip():
+            raise RecordBuildError(
+                f"ground_truth.counterexamples[{index}].description is required"
+            )
+        linked = set(
+            _ids(
+                item.get("claim_ids"),
+                f"ground_truth.counterexamples[{index}].claim_ids",
+            )
+        )
+        if not linked:
+            raise RecordBuildError(
+                f"ground_truth.counterexamples[{index}].claim_ids must not be empty"
+            )
+        if not linked <= material:
+            raise RecordBuildError(
+                f"ground_truth.counterexamples[{index}].claim_ids must reference material claims"
+            )
+
+    return claims, material, counterexamples
 
 
 def build_assessment_template(
@@ -198,7 +252,7 @@ def build_assessment_template(
     pair = _load(pair_path)
     _validate_pair(pair)
     gt = _load(ground_truth_path)
-    claims, material = _validate_ground_truth(gt, pair)
+    claims, material, counterexamples = _validate_ground_truth(gt, pair)
     pair_dir = pair_path.parent
 
     evidence: dict[str, dict[str, Any]] = {}
@@ -207,7 +261,7 @@ def build_assessment_template(
         if not result_path.is_file():
             raise RecordBuildError(f"missing {condition} result.txt")
         evidence[condition] = {
-            "result_path": str(result_path),
+            "result_path": str(result_path.relative_to(pair_dir)),
             "result_sha256": _sha256(result_path),
         }
 
@@ -220,14 +274,30 @@ def build_assessment_template(
             for claim in claims
             if claim["id"] in material
         ],
+        "counterexample_catalog": [
+            {
+                "id": item["id"],
+                "description": item["description"],
+                "claim_ids": item["claim_ids"],
+            }
+            for item in counterexamples
+        ],
         "evidence": evidence,
         "baseline": {
+            "inspection_artifacts": [{
+                "path": evidence["baseline"]["result_path"],
+                "sha256": evidence["baseline"]["result_sha256"],
+            }],
             "inspected_claim_ids": [],
             "detected_failure_ids": [],
             "detected_counterexample_ids": [],
             "verification_seconds": None,
         },
         "showmewhy": {
+            "inspection_artifacts": [{
+                "path": evidence["showmewhy"]["result_path"],
+                "sha256": evidence["showmewhy"]["result_sha256"],
+            }],
             "surfaced_claim_ids": [],
             "verified_claim_ids": [],
             "refuted_claim_ids": [],
@@ -239,12 +309,59 @@ def build_assessment_template(
     }
 
 
-def _measure_text(path: Path) -> tuple[int, int]:
-    data = path.read_bytes()
-    tokens = 0 if not data else max(1, (len(data) + 3) // 4)
-    lines = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
-    return tokens, lines
+def _inspection_cost(
+    pair_dir: Path,
+    artifacts: Any,
+    field: str,
+) -> tuple[int, int]:
+    if not isinstance(artifacts, list) or not artifacts:
+        raise RecordBuildError(f"{field} must be a non-empty artifact list")
 
+    resolved_root = pair_dir.resolve()
+    seen_paths: set[str] = set()
+    total_tokens = 0
+    total_lines = 0
+
+    for index, artifact in enumerate(artifacts):
+        if not isinstance(artifact, dict):
+            raise RecordBuildError(f"{field}[{index}] must be an object")
+        if set(artifact) != {"path", "sha256"}:
+            raise RecordBuildError(
+                f"{field}[{index}] must contain exactly path and sha256"
+            )
+
+        raw_path = artifact.get("path")
+        expected_hash = artifact.get("sha256")
+        if not isinstance(raw_path, str) or not raw_path:
+            raise RecordBuildError(f"{field}[{index}].path is required")
+        if not isinstance(expected_hash, str) or len(expected_hash) != 64:
+            raise RecordBuildError(f"{field}[{index}].sha256 must be a SHA-256 digest")
+        if raw_path in seen_paths:
+            raise RecordBuildError(f"{field} contains duplicate artifact path: {raw_path}")
+        seen_paths.add(raw_path)
+
+        candidate = (pair_dir / raw_path).resolve()
+        try:
+            candidate.relative_to(resolved_root)
+        except ValueError as exc:
+            raise RecordBuildError(
+                f"{field}[{index}].path escapes the pair evidence directory"
+            ) from exc
+        if not candidate.is_file():
+            raise RecordBuildError(f"{field}[{index}] file does not exist: {raw_path}")
+        if _sha256(candidate) != expected_hash:
+            raise RecordBuildError(
+                f"{field}[{index}] hash does not match captured evidence: {raw_path}"
+            )
+
+        data = candidate.read_bytes()
+        # Same deterministic approximation used elsewhere in ShowMeWhy: ceil(bytes / 4).
+        total_tokens += 0 if not data else max(1, (len(data) + 3) // 4)
+        total_lines += data.count(b"\n") + (
+            1 if data and not data.endswith(b"\n") else 0
+        )
+
+    return total_tokens, total_lines
 
 def _seconds(value: Any, field: str) -> float:
     if (
@@ -265,7 +382,7 @@ def assemble_record(
     pair = _load(pair_path)
     _validate_pair(pair)
     gt = _load(ground_truth_path)
-    claims, material = _validate_ground_truth(gt, pair)
+    claims, material, counterexamples = _validate_ground_truth(gt, pair)
     assessment = _load(assessment_path)
 
     if assessment.get("version") != "v5-assessment-1":
@@ -280,7 +397,12 @@ def assemble_record(
         evidence = assessment.get("evidence", {}).get(condition)
         if not isinstance(evidence, dict):
             raise RecordBuildError(f"assessment.evidence.{condition} is required")
-        result_path = pair_dir / condition / "result.txt"
+        expected_result_path = Path(condition) / "result.txt"
+        if evidence.get("result_path") != str(expected_result_path):
+            raise RecordBuildError(
+                f"assessment {condition} result_path must be {expected_result_path}"
+            )
+        result_path = pair_dir / expected_result_path
         if not result_path.is_file():
             raise RecordBuildError(f"missing {condition} result.txt")
         if evidence.get("result_sha256") != _sha256(result_path):
@@ -295,9 +417,7 @@ def assemble_record(
         for claim in claims
         if claim["material"] and claim["human_review"]
     }
-    counterexamples = {
-        claim["id"] for claim in claims if claim["counterexample"]
-    }
+    counterexample_ids = {item["id"] for item in counterexamples}
 
     baseline = assessment.get("baseline")
     showmewhy = assessment.get("showmewhy")
@@ -330,9 +450,27 @@ def assemble_record(
         )
     }
 
-    for field, values in {**baseline_ids, **smw_ids}.items():
+    claim_id_fields = {
+        "baseline.inspected_claim_ids": baseline_ids["inspected_claim_ids"],
+        "baseline.detected_failure_ids": baseline_ids["detected_failure_ids"],
+        "showmewhy.surfaced_claim_ids": smw_ids["surfaced_claim_ids"],
+        "showmewhy.verified_claim_ids": smw_ids["verified_claim_ids"],
+        "showmewhy.refuted_claim_ids": smw_ids["refuted_claim_ids"],
+        "showmewhy.open_claim_ids": smw_ids["open_claim_ids"],
+        "showmewhy.detected_failure_ids": smw_ids["detected_failure_ids"],
+    }
+    for field, values in claim_id_fields.items():
         if not set(values) <= gt_material:
             raise RecordBuildError(f"{field} contains ids outside material claim catalog")
+
+    # Counterexample ids are intentionally a separate namespace. Unknown ids are
+    # permitted here because the scorer needs to measure false counterexample reports.
+    for field, values in (
+        ("baseline.detected_counterexample_ids", baseline_ids["detected_counterexample_ids"]),
+        ("showmewhy.detected_counterexample_ids", smw_ids["detected_counterexample_ids"]),
+    ):
+        if any(not item for item in values):
+            raise RecordBuildError(f"{field} contains an empty id")
 
     if set(smw_ids["surfaced_claim_ids"]) != set(smw_ids["open_claim_ids"]):
         raise RecordBuildError("ShowMeWhy surfaced_claim_ids must equal open_claim_ids")
@@ -348,8 +486,16 @@ def assemble_record(
     ):
         raise RecordBuildError("ShowMeWhy closure sets must be pairwise disjoint")
 
-    baseline_tokens, baseline_lines = _measure_text(pair_dir / "baseline" / "result.txt")
-    smw_tokens, smw_lines = _measure_text(pair_dir / "showmewhy" / "result.txt")
+    baseline_tokens, baseline_lines = _inspection_cost(
+        pair_dir,
+        baseline.get("inspection_artifacts"),
+        "assessment.baseline.inspection_artifacts",
+    )
+    smw_tokens, smw_lines = _inspection_cost(
+        pair_dir,
+        showmewhy.get("inspection_artifacts"),
+        "assessment.showmewhy.inspection_artifacts",
+    )
 
     return {
         "task_id": pair["task_id"],
@@ -359,7 +505,7 @@ def assemble_record(
             "material_claim_ids": sorted(gt_material),
             "failing_claim_ids": sorted(failures),
             "human_review_claim_ids": sorted(review),
-            "counterexample_ids": sorted(counterexamples),
+            "counterexample_ids": sorted(counterexample_ids),
             "oracle_refs": list(gt["oracle_refs"]),
             "labeler_count": gt["labeler_count"],
             "adjudicated": gt["adjudicated"],
