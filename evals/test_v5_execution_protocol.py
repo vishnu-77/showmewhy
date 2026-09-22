@@ -63,7 +63,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     data["tool_profile"],
-                    "v5-posthoc-bare-v2",
+                    "v5-posthoc-restricted-v2",
                 )
                 self.assertEqual(data["repeat_index"], 0)
                 self.assertEqual(
@@ -123,7 +123,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             "SHOWMEWHY_V5_WORKSPACE": str(workspace),
             "SHOWMEWHY_V5_MODEL": "claude-sonnet-5",
             "SHOWMEWHY_V5_AGENT_RUNTIME": runtime,
-            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-bare-v2",
+            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-restricted-v2",
         }
         baseline_result = root / "baseline-result.txt"
         if condition == "showmewhy":
@@ -201,7 +201,15 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         invocation = self._main_invocation(calls)
         self.assertIn("--bare", invocation)
-        self.assertIn("--permission-mode", invocation)
+        self.assertIn("--restricted", invocation)
+        self.assertEqual(
+            invocation[invocation.index("--permission-mode") + 1],
+            "dontAsk",
+        )
+        self.assertEqual(
+            invocation[invocation.index("--permission-prompts") + 1],
+            "none",
+        )
         self.assertNotIn("--append-system-prompt-file", invocation)
         tool_value = invocation[invocation.index("--tools") + 1]
         self.assertIn("Edit", tool_value)
@@ -224,6 +232,10 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         model_env = call_envs[main_index]
         self.assertIsNotNone(model_env)
         self.assertIn("ANTHROPIC_API_KEY", model_env or {})
+        self.assertEqual(
+            (model_env or {}).get("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"),
+            "1",
+        )
         self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
         self.assertNotIn("SHOWMEWHY_V5_PAIR_ID", model_env or {})
 
@@ -234,6 +246,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         invocation = self._main_invocation(calls)
         self.assertIn("--bare", invocation)
+        self.assertIn("--restricted", invocation)
         self.assertIn("--append-system-prompt-file", invocation)
         tool_value = invocation[invocation.index("--tools") + 1]
         self.assertNotIn("Edit", tool_value)
@@ -283,6 +296,10 @@ class V5ExecutionProtocolTests(unittest.TestCase):
         self.assertNotIn("V5", treatment)
         main_index = next(i for i, call in enumerate(calls) if "-p" in call)
         model_env = call_envs[main_index]
+        self.assertEqual(
+            (model_env or {}).get("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"),
+            "1",
+        )
         self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
         self.assertNotIn("SHOWMEWHY_V5_OUTPUT_DIR", model_env or {})
 
@@ -306,7 +323,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
             "SHOWMEWHY_V5_WORKSPACE": str(workspace),
             "SHOWMEWHY_V5_MODEL": "claude-sonnet-5",
             "SHOWMEWHY_V5_AGENT_RUNTIME": "claude-code-cli@2.1.278",
-            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-bare-v2",
+            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-restricted-v2",
         }
         old_cwd = Path.cwd()
         try:
@@ -357,7 +374,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 "task_prompt_sha256": "b" * 64,
                 "model": "claude-sonnet-5",
                 "agent_runtime": "claude-code-cli@2.1.278",
-                "tool_profile": "v5-posthoc-bare-v2",
+                "tool_profile": "v5-posthoc-restricted-v2",
                 "repeat_index": 0,
             },
             "task_prompt": {
