@@ -106,12 +106,14 @@ def build_ground_truth_template(
 ) -> dict[str, Any]:
     """Create a label packet without reading either condition's output files."""
 
-    manifest = _load(manifest_path)
     pair = _load(pair_path)
     _validate_pair(pair)
     if pair.get("task_id") != task_id:
         raise RecordBuildError("pair task_id does not match requested task")
 
+    # Only touch the oracle-bearing selection manifest after the raw pair has
+    # passed all post-hoc/equivalence guards.
+    manifest = _load(manifest_path)
     tasks = manifest.get("tasks")
     if not isinstance(tasks, list):
         raise RecordBuildError("pilot manifest.tasks must be a list")
