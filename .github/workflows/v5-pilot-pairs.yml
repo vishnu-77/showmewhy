@@ -94,7 +94,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/v5-pairs"
-          python showmewhy/evals/v5/pair_runner.py             "showmewhy/evals/v5/pilot/pairs/${{ inputs.task_id }}.json"             --source-checkout subject             --output-dir "$RUNNER_TEMP/v5-pairs"
+          python showmewhy/evals/v5/pair_runner.py \
+            "showmewhy/evals/v5/pilot/pairs/${{ inputs.task_id }}.json" \
+            --source-checkout subject \
+            --output-dir "$RUNNER_TEMP/v5-pairs"
 
       - name: Verify raw bundle contains no ground truth
         shell: bash
@@ -109,10 +112,26 @@ jobs:
           if len(roots) != 1:
               raise SystemExit(f"expected one pair.json, found {len(roots)}")
           pair = json.loads(roots[0].read_text())
+          if pair.get("version") != "v5-pair-run-2":
+              raise SystemExit("raw pair is not v5-pair-run-2")
+          if pair.get("design") != "single-task-posthoc-verification":
+              raise SystemExit("raw pair does not use the post-hoc design")
+          if pair.get("task_execution_count") != 1:
+              raise SystemExit("raw pair did not execute the coding task exactly once")
           if pair.get("ground_truth_present") is not False:
               raise SystemExit("raw pair is not ground-truth blind")
           if pair.get("pair_status") != "valid":
               raise SystemExit("raw pair is not valid")
+          eq = pair.get("workspace_equivalence", {})
+          if eq.get("pre_verification") != "identical":
+              raise SystemExit("workspace was not identical before ShowMeWhy verification")
+          if eq.get("post_verification") != "identical":
+              raise SystemExit("ShowMeWhy verification changed the completed workspace")
+          conditions = pair.get("conditions", {})
+          if conditions.get("baseline", {}).get("role") != "task-agent-result":
+              raise SystemExit("baseline condition has the wrong role")
+          if conditions.get("showmewhy", {}).get("role") != "posthoc-verification":
+              raise SystemExit("ShowMeWhy condition has the wrong role")
           print(roots[0])
           PY
 
