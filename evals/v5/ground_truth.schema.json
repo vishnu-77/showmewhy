@@ -13,7 +13,8 @@
     "labeler_count",
     "adjudicated",
     "blinded_to_showmewhy",
-    "claims"
+    "claims",
+    "counterexamples"
   ],
   "properties": {
     "version": {
@@ -70,8 +71,7 @@
           "text",
           "material",
           "failing",
-          "human_review",
-          "counterexample"
+          "human_review"
         ],
         "properties": {
           "id": {
@@ -90,9 +90,37 @@
           },
           "human_review": {
             "type": "boolean"
+          }
+        }
+      }
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "claim_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
           },
-          "counterexample": {
-            "type": "boolean"
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claim_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
           }
         }
       }
