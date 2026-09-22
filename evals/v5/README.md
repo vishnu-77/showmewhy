@@ -103,9 +103,9 @@ The pilot now has a complete raw-execution path:
 
 ### Controlled treatment
 
-Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, **Claude Code 2.1.278**, and `v5-posthoc-bare-v2` tool profile.
+Both conditions use the same frozen prompt, repository revision, `claude-sonnet-5`, **Claude Code 2.1.278**, and `v5-posthoc-restricted-v2` tool profile.
 
-The coding agent runs **once** in `--bare` mode so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into the task result. After that process exits, ShowMeWhy starts as a fresh `--bare` Claude process in the **same completed workspace**, using the captured baseline answer and no `Edit` or `Write` tools. This preserves the exact repository state plus ignored build/test artifacts produced by the task run. The runner fingerprints all Git-visible workspace content before and after verification and invalidates the pair if it changes. The treatment appends the repository's exact canonical `skills/showmewhy/SKILL.md`; the contract SHA-256 is persisted in `adapter.json`.
+The coding agent runs **once** with `--bare --restricted` so personal/project hooks, plugins, skills, MCP servers, auto-memory and `CLAUDE.md` cannot leak into the task result. Restricted mode is Claude Code's evaluation-harness boundary: only explicitly named tools are exposed and file tools are confined to the working directory. After that process exits, ShowMeWhy starts as a fresh `--bare --restricted` Claude process in the **same completed workspace**, using the captured baseline answer and no `Edit` or `Write` tools. This preserves the exact repository state plus ignored build/test artifacts produced by the task run. The runner fingerprints all Git-visible workspace content before and after verification and invalidates the pair if it changes. The treatment appends the repository's exact canonical `skills/showmewhy/SKILL.md`; the contract SHA-256 is persisted in `adapter.json`.
 
 This deliberately evaluates the **ShowMeWhy verification contract**, not the optional Bash compression hook. Compression can alter active evidence and is therefore outside the V5 treatment variable.
 
@@ -130,7 +130,7 @@ python evals/v5/pair_runner.py \
   --output-dir /path/to/v5-runs
 ```
 
-The command template supports `{python}` and `{showmewhy_repo}` placeholders so committed pair specs stay portable. Claude authentication for this protocol must use `ANTHROPIC_API_KEY`. Claude Code `--bare` deliberately disables OAuth/keychain authentication; the runner also forces `DISABLE_AUTOUPDATER=1` so the pinned CLI cannot drift during a pair. Secret values are never written to the bundle.
+The command template supports `{python}` and `{showmewhy_repo}` placeholders so committed pair specs stay portable. Claude authentication for this protocol uses `ANTHROPIC_API_KEY`. The Claude parent process needs that credential, but the runner forces `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, which removes provider credentials from Bash/hook/MCP child environments; on Linux Claude Code also isolates Bash in a PID namespace so `/proc` cannot read the parent environment. The runner also forces `DISABLE_AUTOUPDATER=1` so the pinned CLI cannot drift. Secret values are never written to the bundle.
 
 For GitHub-hosted execution, run **V5 pilot paired execution** manually after configuring `V5_ANTHROPIC_API_KEY`. The workflow uploads raw pair evidence only.
 
