@@ -46,13 +46,93 @@ ESSENTIAL_ENV = (
     "TERM",
     "XDG_CONFIG_HOME",
     "XDG_CACHE_HOME",
-    "CLAUDE_CONFIG_DIR",
-    "ANTHROPIC_API_KEY",
-    "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB",
 )
 
 PAIR_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 SHOWMEWHY_REPO = Path(__file__).resolve().parents[2]
+RUNTIME_SENTINEL = "__runtime__"
+
+
+def _runtime_value(name: str) -> str:
+    value = os.environ.get(name)
+    if not isinstance(value, str) or not value.strip():
+        raise PairRunError(f"missing required runtime environment variable: {name}")
+    return value.strip()
+
+
+def _runtime_json_list(name: str) -> list[str]:
+    raw = _runtime_value(name)
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise PairRunError(f"{name} must be a JSON array: {exc}") from exc
+    if (
+        not isinstance(value, list)
+        or not value
+        or any(not isinstance(item, str) or not item for item in value)
+    ):
+        raise PairRunError(f"{name} must be a non-empty JSON array of strings")
+    return value
+
+
+def _resolve_execution_spec(spec: dict[str, Any]) -> dict[str, Any]:
+    resolved = json.loads(json.dumps(spec))
+
+    runtime_fields = {
+        "model": "SHOWMEWHY_V5_EXECUTION_MODEL",
+        "agent_runtime": "SHOWMEWHY_V5_EXECUTION_RUNTIME",
+        "tool_profile": "SHOWMEWHY_V5_EXECUTION_TOOL_PROFILE",
+    }
+    for field, env_name in runtime_fields.items():
+        if resolved.get(field) == RUNTIME_SENTINEL:
+            resolved[field] = _runtime_value(env_name)
+
+    command = resolved["command"]
+    if command.get("argv") == [RUNTIME_SENTINEL]:
+        command["argv"] = _runtime_json_list(
+            "SHOWMEWHY_V5_ADAPTER_ARGV_JSON"
+        )
+
+    pass_env_override = os.environ.get(
+        "SHOWMEWHY_V5_ADAPTER_PASS_ENV_JSON"
+    )
+    if pass_env_override:
+        try:
+            pass_env = json.loads(pass_env_override)
+        except json.JSONDecodeError as exc:
+            raise PairRunError(
+                f"SHOWMEWHY_V5_ADAPTER_PASS_ENV_JSON must be JSON: {exc}"
+            ) from exc
+        if (
+            not isinstance(pass_env, list)
+            or any(not isinstance(item, str) or not item for item in pass_env)
+            or len(pass_env) != len(set(pass_env))
+        ):
+            raise PairRunError(
+                "SHOWMEWHY_V5_ADAPTER_PASS_ENV_JSON must be a unique JSON array of strings"
+            )
+        command["pass_env"] = pass_env
+
+    timeout_override = os.environ.get("SHOWMEWHY_V5_TIMEOUT_SECONDS")
+    if timeout_override:
+        try:
+            timeout = int(timeout_override)
+        except ValueError as exc:
+            raise PairRunError(
+                "SHOWMEWHY_V5_TIMEOUT_SECONDS must be a positive integer"
+            ) from exc
+        if timeout <= 0:
+            raise PairRunError(
+                "SHOWMEWHY_V5_TIMEOUT_SECONDS must be a positive integer"
+            )
+        command["timeout_seconds"] = timeout
+
+    if command.get("argv") == [RUNTIME_SENTINEL]:
+        raise PairRunError("runtime adapter command was not resolved")
+    for field in runtime_fields:
+        if resolved.get(field) == RUNTIME_SENTINEL:
+            raise PairRunError(f"runtime field {field} was not resolved")
+    return resolved
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -281,7 +361,6 @@ def _build_env(
     env.update(
         {
             "DISABLE_AUTOUPDATER": "1",
-            "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
             "SHOWMEWHY_V5_CONDITION": condition,
             "SHOWMEWHY_V5_PAIR_ID": pair_id,
             "SHOWMEWHY_V5_PROMPT_SHA256": prompt_hash,
@@ -296,7 +375,6 @@ def _build_env(
     if baseline_result_file is not None:
         env["SHOWMEWHY_V5_BASE_RESULT_FILE"] = str(baseline_result_file)
     inherited_names.add("DISABLE_AUTOUPDATER")
-    inherited_names.add("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB")
     return env, sorted(inherited_names)
 
 
@@ -485,7 +563,7 @@ def _run_condition(
         "git": git_meta,
         "adapter_artifacts": adapter_artifacts,
         "environment": {
-            "mode": "minimal-plus-auth-env",
+            "mode": "minimal-plus-explicit-env",
             "inherited_names": inherited_names,
             "condition_variable": "SHOWMEWHY_V5_CONDITION",
         },
@@ -538,7 +616,7 @@ def run_pair(
     output_root: Path,
     keep_worktrees: bool = False,
 ) -> dict[str, Any]:
-    spec = _load_spec(spec_path)
+    spec = _resolve_execution_spec(_load_spec(spec_path))
     source_checkout = source_checkout.resolve()
     output_root = output_root.resolve()
 
