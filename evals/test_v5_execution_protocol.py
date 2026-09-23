@@ -7,7 +7,6 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -25,7 +24,6 @@ def load_module(name: str, path: Path):
     return module
 
 
-adapter = load_module("v5_claude_adapter", V5 / "claude_adapter.py")
 builder = load_module("v5_record_builder", V5 / "record_builder.py")
 pair_runner = load_module("v5_pair_runner_protocol", V5 / "pair_runner.py")
 
@@ -46,7 +44,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 raw = path.read_text(encoding="utf-8")
                 data = json.loads(raw)
                 task = tasks[data["task_id"]]
-                self.assertEqual(data["version"], "v5-pair-spec-2")
+                self.assertEqual(data["version"], "v5-pair-spec-3")
                 self.assertEqual(data["repository"], task["repository"])
                 self.assertEqual(data["revision"], task["pre_fix_revision"])
                 self.assertEqual(data["task_prompt"], task["task_prompt"])
@@ -56,296 +54,83 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                         data["task_prompt"].encode("utf-8")
                     ).hexdigest(),
                 )
-                self.assertEqual(data["model"], "claude-sonnet-5")
-                self.assertEqual(
-                    data["agent_runtime"],
-                    "claude-code-cli@2.1.278",
-                )
-                self.assertEqual(
-                    data["tool_profile"],
-                    "v5-posthoc-restricted-v2",
-                )
+                self.assertEqual(data["model"], "__runtime__")
+                self.assertEqual(data["agent_runtime"], "__runtime__")
+                self.assertEqual(data["tool_profile"], "__runtime__")
                 self.assertEqual(data["repeat_index"], 0)
-                self.assertEqual(
-                    data["command"]["argv"],
-                    [
-                        "{python}",
-                        "{showmewhy_repo}/evals/v5/claude_adapter.py",
-                    ],
-                )
+                self.assertEqual(data["command"]["argv"], ["__runtime__"])
+                self.assertEqual(data["command"].get("pass_env"), [])
+                self.assertNotIn("claude", raw.lower())
+                self.assertNotIn("anthropic", raw.lower())
                 for key in forbidden:
                     self.assertNotIn(f'"{key}"', raw)
 
-    def test_portable_argv_placeholders_expand_to_current_checkout(self):
-        argv = pair_runner._expand_argv(
-            [
-                "{python}",
-                "{showmewhy_repo}/evals/v5/claude_adapter.py",
-            ]
+    def test_runtime_identity_and_adapter_are_supplied_at_execution_time(self):
+        spec = pair_runner._load_spec(
+            PAIRS / "pytest-warning-module-attribution.json"
         )
-        self.assertEqual(
-            Path(argv[0]).resolve(),
-            Path(os.sys.executable).resolve(),
-        )
-        self.assertEqual(
-            Path(argv[1]).resolve(),
-            (ROOT / "evals" / "v5" / "claude_adapter.py").resolve(),
-        )
-
-    def _adapter_run(
-        self,
-        condition: str,
-        *,
-        runtime: str = "claude-code-cli@2.1.278",
-        version_output: str = "2.1.278 (Claude Code)\n",
-    ):
-        td = tempfile.TemporaryDirectory()
-        self.addCleanup(td.cleanup)
-        root = Path(td.name)
-        workspace = root / "workspace"
-        output = root / condition
-        workspace.mkdir()
-        output.mkdir()
-        prompt = root / "prompt.txt"
-        prompt.write_text(
-            "Fix the bug and add tests.",
-            encoding="utf-8",
-        )
-        digest = hashlib.sha256(prompt.read_bytes()).hexdigest()
-
         env = {
-            "ANTHROPIC_API_KEY": "test-key",
-            "SHOWMEWHY_V5_CONDITION": condition,
-            "SHOWMEWHY_V5_PAIR_ID": "fixture-r0",
-            "SHOWMEWHY_V5_PROMPT_SHA256": digest,
-            "SHOWMEWHY_V5_PROMPT_FILE": str(prompt),
-            "SHOWMEWHY_V5_OUTPUT_DIR": str(output),
-            "SHOWMEWHY_V5_WORKSPACE": str(workspace),
-            "SHOWMEWHY_V5_MODEL": "claude-sonnet-5",
-            "SHOWMEWHY_V5_AGENT_RUNTIME": runtime,
-            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-restricted-v2",
+            "SHOWMEWHY_V5_EXECUTION_MODEL": "example-model",
+            "SHOWMEWHY_V5_EXECUTION_RUNTIME": "example-agent@1.0",
+            "SHOWMEWHY_V5_EXECUTION_TOOL_PROFILE": "read-write-local",
+            "SHOWMEWHY_V5_ADAPTER_ARGV_JSON": json.dumps(
+                ["python", "/tmp/example_adapter.py"]
+            ),
+            "SHOWMEWHY_V5_ADAPTER_PASS_ENV_JSON": json.dumps(
+                ["EXAMPLE_PROVIDER_TOKEN"]
+            ),
+            "SHOWMEWHY_V5_TIMEOUT_SECONDS": "900",
         }
-        baseline_result = root / "baseline-result.txt"
-        if condition == "showmewhy":
-            baseline_result.write_text(
-                "Implemented the fix and added regression coverage.",
-                encoding="utf-8",
-            )
-            env["SHOWMEWHY_V5_BASE_RESULT_FILE"] = str(
-                baseline_result
-            )
+        with patch.dict(os.environ, env, clear=False):
+            resolved = pair_runner._resolve_execution_spec(spec)
 
-        calls: list[list[str]] = []
-        call_envs: list[dict | None] = []
+        self.assertEqual(resolved["model"], "example-model")
+        self.assertEqual(
+            resolved["agent_runtime"], "example-agent@1.0"
+        )
+        self.assertEqual(
+            resolved["tool_profile"], "read-write-local"
+        )
+        self.assertEqual(
+            resolved["command"]["argv"],
+            ["python", "/tmp/example_adapter.py"],
+        )
+        self.assertEqual(
+            resolved["command"]["pass_env"],
+            ["EXAMPLE_PROVIDER_TOKEN"],
+        )
+        self.assertEqual(
+            resolved["command"]["timeout_seconds"],
+            900,
+        )
 
-        def fake_run(argv, **kwargs):
-            calls.append(list(argv))
-            call_envs.append(kwargs.get("env"))
-            if argv[1:] == ["--version"]:
-                return SimpleNamespace(
-                    returncode=0,
-                    stdout=version_output,
-                    stderr="",
-                )
-            response = {
-                "result": (
-                    "SHOWMEWHY\n\n"
-                    "NEEDS YOU\n"
-                    "1  boundary remains open\n\n"
-                    "DO NEXT\nRun the boundary check."
-                    if condition == "showmewhy"
-                    else "Implemented the fix and added tests."
-                ),
-                "is_error": False,
-                "subtype": "success",
-                "session_id": "session-fixture",
-                "usage": {
-                    "input_tokens": 100,
-                    "output_tokens": 50,
-                },
-                "total_cost_usd": 0.01,
-            }
-            return SimpleNamespace(
-                returncode=0,
-                stdout=json.dumps(response),
-                stderr="",
-            )
-
-        old_cwd = Path.cwd()
-        try:
-            os.chdir(workspace)
-            with patch.dict(
-                os.environ,
-                env,
-                clear=False,
-            ), patch.object(
-                adapter.shutil,
-                "which",
-                return_value="/fake/claude",
-            ), patch.object(
-                adapter.subprocess,
-                "run",
-                side_effect=fake_run,
+    def test_missing_runtime_configuration_fails_before_provider_execution(self):
+        spec = pair_runner._load_spec(
+            PAIRS / "pytest-warning-module-attribution.json"
+        )
+        names = [
+            "SHOWMEWHY_V5_EXECUTION_MODEL",
+            "SHOWMEWHY_V5_EXECUTION_RUNTIME",
+            "SHOWMEWHY_V5_EXECUTION_TOOL_PROFILE",
+            "SHOWMEWHY_V5_ADAPTER_ARGV_JSON",
+            "SHOWMEWHY_V5_ADAPTER_PASS_ENV_JSON",
+            "SHOWMEWHY_V5_TIMEOUT_SECONDS",
+        ]
+        clean = {name: "" for name in names}
+        with patch.dict(os.environ, clean, clear=False):
+            with self.assertRaisesRegex(
+                pair_runner.PairRunError,
+                "missing required runtime environment variable",
             ):
-                rc = adapter.run()
-        finally:
-            os.chdir(old_cwd)
-        return output, calls, call_envs, rc, baseline_result
+                pair_runner._resolve_execution_spec(spec)
 
-    @staticmethod
-    def _main_invocation(calls: list[list[str]]) -> list[str]:
-        return next(call for call in calls if "-p" in call)
-
-    def test_adapter_baseline_is_bare_and_has_no_showmewhy_treatment(self):
-        output, calls, call_envs, rc, _ = self._adapter_run("baseline")
-        self.assertEqual(rc, 0)
-        invocation = self._main_invocation(calls)
-        self.assertIn("--bare", invocation)
-        self.assertIn("--restricted", invocation)
-        self.assertEqual(
-            invocation[invocation.index("--permission-mode") + 1],
-            "dontAsk",
+    def test_runner_has_no_implicit_provider_credentials(self):
+        self.assertNotIn("ANTHROPIC_API_KEY", pair_runner.ESSENTIAL_ENV)
+        self.assertNotIn("CLAUDE_CONFIG_DIR", pair_runner.ESSENTIAL_ENV)
+        self.assertNotIn(
+            "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB",
+            pair_runner.ESSENTIAL_ENV,
         )
-        self.assertEqual(
-            invocation[invocation.index("--permission-prompts") + 1],
-            "none",
-        )
-        self.assertNotIn("--append-system-prompt-file", invocation)
-        tool_value = invocation[invocation.index("--tools") + 1]
-        self.assertIn("Edit", tool_value)
-        self.assertIn("Write", tool_value)
-
-        meta = json.loads(
-            (output / "adapter.json").read_text(encoding="utf-8")
-        )
-        self.assertEqual(meta["version"], "v5-claude-adapter-2")
-        self.assertEqual(meta["role"], "task-agent-result")
-        self.assertEqual(meta["treatment"], "none")
-        self.assertIsNone(meta["treatment_sha256"])
-        self.assertIsNone(meta["baseline_result_sha256"])
-        self.assertEqual(
-            meta["claude_version"],
-            "2.1.278 (Claude Code)",
-        )
-        self.assertTrue((output / "result.txt").is_file())
-        main_index = next(i for i, call in enumerate(calls) if "-p" in call)
-        model_env = call_envs[main_index]
-        self.assertIsNotNone(model_env)
-        self.assertIn("ANTHROPIC_API_KEY", model_env or {})
-        self.assertEqual(
-            (model_env or {}).get("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"),
-            "1",
-        )
-        self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
-        self.assertNotIn("SHOWMEWHY_V5_PAIR_ID", model_env or {})
-
-    def test_adapter_showmewhy_is_posthoc_and_has_no_edit_tools(self):
-        output, calls, call_envs, rc, baseline_result = self._adapter_run(
-            "showmewhy"
-        )
-        self.assertEqual(rc, 0)
-        invocation = self._main_invocation(calls)
-        self.assertIn("--bare", invocation)
-        self.assertIn("--restricted", invocation)
-        self.assertIn("--append-system-prompt-file", invocation)
-        tool_value = invocation[invocation.index("--tools") + 1]
-        self.assertNotIn("Edit", tool_value)
-        self.assertNotIn("Write", tool_value)
-        self.assertIn("Bash", tool_value)
-        user_prompt = invocation[invocation.index("-p") + 1]
-        self.assertIn(
-            "Implemented the fix and added regression coverage.",
-            user_prompt,
-        )
-        self.assertIn("Fix the bug and add tests.", user_prompt)
-
-        meta = json.loads(
-            (output / "adapter.json").read_text(encoding="utf-8")
-        )
-        self.assertEqual(meta["role"], "posthoc-verification")
-        self.assertEqual(
-            meta["treatment"],
-            "canonical-skill-posthoc",
-        )
-        self.assertEqual(
-            meta["baseline_result_sha256"],
-            hashlib.sha256(
-                baseline_result.read_bytes()
-            ).hexdigest(),
-        )
-        expected_skill = hashlib.sha256(
-            (
-                ROOT
-                / "skills"
-                / "showmewhy"
-                / "SKILL.md"
-            ).read_bytes()
-        ).hexdigest()
-        self.assertEqual(
-            meta["canonical_skill_sha256"],
-            expected_skill,
-        )
-        self.assertTrue(meta["treatment_sha256"])
-        self.assertTrue(
-            (output / "showmewhy-treatment.md").is_file()
-        )
-        treatment = (
-            output / "showmewhy-treatment.md"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn("benchmark", treatment.lower())
-        self.assertNotIn("V5", treatment)
-        main_index = next(i for i, call in enumerate(calls) if "-p" in call)
-        model_env = call_envs[main_index]
-        self.assertEqual(
-            (model_env or {}).get("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"),
-            "1",
-        )
-        self.assertNotIn("SHOWMEWHY_V5_CONDITION", model_env or {})
-        self.assertNotIn("SHOWMEWHY_V5_OUTPUT_DIR", model_env or {})
-
-    def test_adapter_requires_api_key_for_bare_mode(self):
-        td = tempfile.TemporaryDirectory()
-        self.addCleanup(td.cleanup)
-        root = Path(td.name)
-        workspace = root / "workspace"
-        output = root / "baseline"
-        workspace.mkdir()
-        output.mkdir()
-        prompt = root / "prompt.txt"
-        prompt.write_text("Fix the bug.", encoding="utf-8")
-        digest = hashlib.sha256(prompt.read_bytes()).hexdigest()
-        env = {
-            "SHOWMEWHY_V5_CONDITION": "baseline",
-            "SHOWMEWHY_V5_PAIR_ID": "fixture-r0",
-            "SHOWMEWHY_V5_PROMPT_SHA256": digest,
-            "SHOWMEWHY_V5_PROMPT_FILE": str(prompt),
-            "SHOWMEWHY_V5_OUTPUT_DIR": str(output),
-            "SHOWMEWHY_V5_WORKSPACE": str(workspace),
-            "SHOWMEWHY_V5_MODEL": "claude-sonnet-5",
-            "SHOWMEWHY_V5_AGENT_RUNTIME": "claude-code-cli@2.1.278",
-            "SHOWMEWHY_V5_TOOL_PROFILE": "v5-posthoc-restricted-v2",
-        }
-        old_cwd = Path.cwd()
-        try:
-            os.chdir(workspace)
-            with patch.dict(os.environ, env, clear=True):
-                with self.assertRaisesRegex(
-                    adapter.AdapterError,
-                    "ANTHROPIC_API_KEY",
-                ):
-                    adapter.run()
-        finally:
-            os.chdir(old_cwd)
-
-    def test_adapter_rejects_runtime_version_drift(self):
-        with self.assertRaisesRegex(
-            adapter.AdapterError,
-            "runtime mismatch",
-        ):
-            self._adapter_run(
-                "baseline",
-                version_output="2.1.279 (Claude Code)\n",
-            )
 
     def _raw_pair(self, root: Path) -> Path:
         pair_dir = root / "pair"
@@ -372,9 +157,9 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 "repository": "fixture/repo",
                 "revision": "a" * 40,
                 "task_prompt_sha256": "b" * 64,
-                "model": "claude-sonnet-5",
-                "agent_runtime": "claude-code-cli@2.1.278",
-                "tool_profile": "v5-posthoc-restricted-v2",
+                "model": "fixture-model",
+                "agent_runtime": "fixture-agent@1.0",
+                "tool_profile": "fixture-provider-neutral",
                 "repeat_index": 0,
             },
             "task_prompt": {

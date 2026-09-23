@@ -57,20 +57,23 @@ Upstream merged PRs are **oracle sources**, not evidence that ShowMeWhy performs
 
 ## Frozen execution packet
 
-Each selected task now has an oracle-free pair spec under `pairs/`. The six specs pin:
+Each selected task has an oracle-free pair spec under `pairs/`. The six specs pin:
 
 - the pre-fix revision;
 - exact prompt bytes and SHA-256;
-- `claude-sonnet-5`;
-- `claude-code-cli@2.1.278`;
-- `v5-posthoc-bare-v2`;
 - repeat index 0;
-- the portable V5 Claude adapter command.
+- runtime placeholders only.
+
+They deliberately do **not** pin a model vendor, model name, agent CLI, provider credential or adapter executable. Those execution details are supplied explicitly at run time and recorded into the resulting pair evidence.
 
 The pair specs intentionally contain **no** accepted-fix revision, oracle references, expected failure description or ground-truth labels. `pair_runner.py` rejects those fields recursively if they are introduced.
 
-The ShowMeWhy treatment uses the current repository's canonical `SKILL.md` contract and records its SHA-256. The optional context-compression runtime is excluded from the treatment variable.
+The ShowMeWhy treatment must use the repository's canonical `SKILL.md` contract. The optional context-compression runtime is excluded from the treatment variable.
+
+See [`../ADAPTER_PROTOCOL.md`](../ADAPTER_PROTOCOL.md) for the provider-neutral execution boundary.
 
 ## Execution status
 
-The presence of pair specs and a runnable workflow does not change the selection manifest's status. Keep `selection_status=selected_unexecuted` and `execution_status=not_run` until a valid raw pair actually exists for that task. Do not commit guessed measurements back into `manifest.json`.
+Keep `selection_status=selected_unexecuted` and `execution_status=not_run` until a valid raw pair actually exists for that task. Do not commit guessed measurements back into `manifest.json`.
+
+The September 2026 Anthropic/Claude execution attempt was cancelled during harness validation and produced **no scoreable V5 benchmark result**. Its artifacts may be retained only as infrastructure-debugging evidence and must not be included in effectiveness metrics.

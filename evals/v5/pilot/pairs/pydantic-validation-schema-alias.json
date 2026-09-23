@@ -1,20 +1,19 @@
 {
-  "version": "v5-pair-spec-2",
+  "version": "v5-pair-spec-3",
   "task_id": "pydantic-validation-schema-alias",
   "domain": "code-contract",
   "repository": "pydantic/pydantic",
   "revision": "d4e72faf5749257cd7feeb27bc7ca56c423942b6",
   "task_prompt": "Investigate a mismatch between Pydantic validation behaviour and generated validation JSON Schema when a field has an alias but validate_by_alias=False. Make the validation schema describe keys the model actually accepts, preserve serialization behaviour, and verify nested model configuration remains correctly scoped. Add focused regression coverage.",
   "task_prompt_sha256": "197a2f5f99764837a290fd9f1620abdbb9a39cfcabed942b02b751d74898214b",
-  "model": "claude-sonnet-5",
-  "agent_runtime": "claude-code-cli@2.1.278",
-  "tool_profile": "v5-posthoc-restricted-v2",
+  "model": "__runtime__",
+  "agent_runtime": "__runtime__",
+  "tool_profile": "__runtime__",
   "repeat_index": 0,
   "pair_id": "pydantic-validation-schema-alias-r0",
   "command": {
     "argv": [
-      "{python}",
-      "{showmewhy_repo}/evals/v5/claude_adapter.py"
+      "__runtime__"
     ],
     "timeout_seconds": 3600,
     "pass_env": []
