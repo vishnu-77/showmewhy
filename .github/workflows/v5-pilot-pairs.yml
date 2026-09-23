@@ -66,6 +66,14 @@ jobs:
             exit 1
           fi
 
+      - name: Install Claude isolation dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          bwrap --version
+
       - name: Install pinned Claude Code 2.1.278
         shell: bash
         run: |
