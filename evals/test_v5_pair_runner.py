@@ -110,7 +110,7 @@ class V5PairRunnerTests(unittest.TestCase):
     ) -> dict[str, object]:
         prompt = "Fix the inherited-state bug and verify the boundary."
         data: dict[str, object] = {
-            "version": "v5-pair-spec-2",
+            "version": "v5-pair-spec-3",
             "task_id": "fixture-task",
             "domain": "code",
             "repository": "fixture/local",
