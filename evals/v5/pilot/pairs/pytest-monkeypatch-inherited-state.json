@@ -1,5 +1,5 @@
 {
-  "version": "v5-pair-spec-2",
+  "version": "v5-pair-spec-3",
   "task_id": "pytest-monkeypatch-inherited-state",
   "domain": "code",
   "repository": "pytest-dev/pytest",
