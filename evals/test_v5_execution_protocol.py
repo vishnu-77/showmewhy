@@ -76,6 +76,19 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 for key in forbidden:
                     self.assertNotIn(f'"{key}"', raw)
 
+    def test_manual_v5_workflow_installs_bubblewrap_and_stays_single_task_dispatch(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "v5-pilot-pairs.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("\n  push:", workflow)
+        self.assertIn(
+            "sudo apt-get install -y --no-install-recommends bubblewrap",
+            workflow,
+        )
+        self.assertIn("bwrap --version", workflow)
+        self.assertIn("name: Pair ${{ inputs.task_id }}", workflow)
+
     def test_portable_argv_placeholders_expand_to_current_checkout(self):
         argv = pair_runner._expand_argv(
             [
