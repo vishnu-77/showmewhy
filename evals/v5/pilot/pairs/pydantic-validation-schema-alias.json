@@ -1,5 +1,5 @@
 {
-  "version": "v5-pair-spec-2",
+  "version": "v5-pair-spec-3",
   "task_id": "pydantic-validation-schema-alias",
   "domain": "code-contract",
   "repository": "pydantic/pydantic",
