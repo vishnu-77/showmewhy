@@ -44,7 +44,7 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 raw = path.read_text(encoding="utf-8")
                 data = json.loads(raw)
                 task = tasks[data["task_id"]]
-                self.assertEqual(data["version"], "v5-pair-spec-2")
+                self.assertEqual(data["version"], "v5-pair-spec-3")
                 self.assertEqual(data["repository"], task["repository"])
                 self.assertEqual(data["revision"], task["pre_fix_revision"])
                 self.assertEqual(data["task_prompt"], task["task_prompt"])
@@ -157,9 +157,9 @@ class V5ExecutionProtocolTests(unittest.TestCase):
                 "repository": "fixture/repo",
                 "revision": "a" * 40,
                 "task_prompt_sha256": "b" * 64,
-                "model": "claude-sonnet-5",
-                "agent_runtime": "claude-code-cli@2.1.278",
-                "tool_profile": "v5-posthoc-restricted-v2",
+                "model": "fixture-model",
+                "agent_runtime": "fixture-agent@1.0",
+                "tool_profile": "fixture-provider-neutral",
                 "repeat_index": 0,
             },
             "task_prompt": {
