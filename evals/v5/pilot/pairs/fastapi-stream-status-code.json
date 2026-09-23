@@ -1,5 +1,5 @@
 {
-  "version": "v5-pair-spec-2",
+  "version": "v5-pair-spec-3",
   "task_id": "fastapi-stream-status-code",
   "domain": "runtime-contract",
   "repository": "fastapi/fastapi",
