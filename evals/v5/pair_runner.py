@@ -203,8 +203,8 @@ def _load_spec(path: Path) -> dict[str, Any]:
         raise PairRunError("pair spec must be a JSON object")
     _walk_forbidden(data)
 
-    if data.get("version") != "v5-pair-spec-2":
-        raise PairRunError("pair spec version must be v5-pair-spec-2")
+    if data.get("version") != "v5-pair-spec-3":
+        raise PairRunError("pair spec version must be v5-pair-spec-3")
 
     for field in (
         "task_id",
@@ -821,7 +821,7 @@ def main() -> None:
         )
     )
     parser.add_argument(
-        "spec", type=Path, help="v5-pair-spec-2 JSON file"
+        "spec", type=Path, help="v5-pair-spec-3 JSON file"
     )
     parser.add_argument(
         "--source-checkout",
