@@ -1,5 +1,5 @@
 {
-  "version": "v5-pair-spec-2",
+  "version": "v5-pair-spec-3",
   "task_id": "ruff-sim117-mixed-sync-async",
   "domain": "static-analysis",
   "repository": "astral-sh/ruff",
