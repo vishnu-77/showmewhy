@@ -1,5 +1,5 @@
 {
-  "version": "v5-pair-spec-2",
+  "version": "v5-pair-spec-3",
   "task_id": "fastapi-sse-line-splitting",
   "domain": "protocol",
   "repository": "fastapi/fastapi",
